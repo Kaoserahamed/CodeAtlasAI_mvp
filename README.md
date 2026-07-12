@@ -1,10 +1,7 @@
-# CodeAtlas AI
+#CodeAtlas AI (MVP)
+Ever tried jumping into a completely unfamiliar codebase and wished you had a literal map? That's why I built CodeAtlas AI. It’s a tool that parses JavaScript and TypeScript projects, extracts relationships between files and functions, and throws them onto an interactive graph.
 
-A codebase knowledge graph tool that visualizes JavaScript/TypeScript projects as interactive graphs, showing files, functions, imports, and call relationships.
-
-![CodeAtlas AI](https://img.shields.io/badge/status-active-success.svg)
-![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen.svg)
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
+Instead of reading raw code to figure out imports or tracking down where a function is called, you can visualize it.
 
 ## 🚀 [Live Demo](https://kaoserahamed.github.io/CodeAtlasAI_mvp/)
 
