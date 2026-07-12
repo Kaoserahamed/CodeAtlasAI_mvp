@@ -4,7 +4,7 @@
  */
 
 import { X, FileText, Code2, ArrowRight, ArrowLeft } from 'lucide-react';
-import { GraphNode, GraphEdge, FunctionNode } from '../types';
+import { GraphNode, GraphEdge } from '../types';
 
 interface DetailsPanelProps {
   node: GraphNode | null;

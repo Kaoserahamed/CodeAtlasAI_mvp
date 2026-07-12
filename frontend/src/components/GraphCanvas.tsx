@@ -3,7 +3,7 @@
  * Interactive graph visualization using React Flow
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect } from 'react';
 import ReactFlow, {
   Node,
   Edge,
