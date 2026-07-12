@@ -107,19 +107,7 @@ codeatlas-ai/
 └── sample-repo/    # Test data
 ```
 
-## Configuration
 
-Create `backend/.env` based on `backend/.env.example`:
-
-```env
-# Neo4j Configuration
-NEO4J_URI=bolt://127.0.0.1:7687
-NEO4J_USER=neo4j
-NEO4J_PASSWORD=your_secure_password
-
-# Server Configuration
-PORT=3001
-```
 
 > ⚠️ **Security Note**: Never commit your `.env` file with real credentials to version control!
 
