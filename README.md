@@ -6,6 +6,10 @@ A codebase knowledge graph tool that visualizes JavaScript/TypeScript projects a
 ![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
+## 🚀 [Live Demo](https://kaoserahamed.github.io/CodeAtlasAI_mvp/)
+
+Try the interactive demo with a pre-loaded Food Delivery application graph - no installation required!
+
 ## Features
 
 - 🔍 **AST-based Parsing** - Analyzes JavaScript/TypeScript using Babel parser
@@ -24,11 +28,28 @@ A codebase knowledge graph tool that visualizes JavaScript/TypeScript projects a
 ### 1. Setup Neo4j Desktop
 
 1. Open Neo4j Desktop
-2. Create a database: Name: `codeatlas`, Password: `password`
-3. Click "Start" and wait for "Active" status
-4. Verify at http://localhost:7474
+2. Create a new database with any name (e.g., `codeatlas`)
+3. Set a secure password (you'll use this in step 2)
+4. Click "Start" and wait for "Active" status
+5. Verify connection at http://localhost:7474
 
-### 2. Install & Run
+### 2. Configure Backend
+
+1. Navigate to `backend/` folder
+2. Copy `.env.example` to `.env`:
+   ```bash
+   cd backend
+   cp .env.example .env
+   ```
+3. Edit `.env` with your Neo4j credentials:
+   ```env
+   NEO4J_URI=bolt://127.0.0.1:7687
+   NEO4J_USER=neo4j
+   NEO4J_PASSWORD=your_password_here
+   PORT=3001
+   ```
+
+### 3. Install & Run
 
 ```bash
 # Install dependencies
@@ -91,14 +112,19 @@ codeatlas-ai/
 
 ## Configuration
 
-Edit `backend/.env`:
+Create `backend/.env` based on `backend/.env.example`:
 
 ```env
+# Neo4j Configuration
 NEO4J_URI=bolt://127.0.0.1:7687
 NEO4J_USER=neo4j
-NEO4J_PASSWORD=password
+NEO4J_PASSWORD=your_secure_password
+
+# Server Configuration
 PORT=3001
 ```
+
+> ⚠️ **Security Note**: Never commit your `.env` file with real credentials to version control!
 
 ## API Endpoints
 
