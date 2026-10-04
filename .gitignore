@@ -56,3 +56,16 @@ backend/temp_repos/
 
 # Food Delivery Application (not needed in repo)
 FoodDelivery/
+
+# Scratch repositories cloned by the scanner (default CLONE_ROOT)
+.codeatlas-repos/
+
+# Local deployment notes and scratch status files.
+# These are working documents kept on the author's machine, not project docs.
+# Real user-facing documentation lives in README.md / CHANGELOG.md / CONTRIBUTING.md.
+DEPLOYMENT_COMPLETE.md
+DEPLOYMENT_SUCCESS.md
+FINAL_STATUS.md
+GIT_FIX_INSTRUCTIONS.md
+QUICK_START.md
+TROUBLESHOOTING_FIXED.md
