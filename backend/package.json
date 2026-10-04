@@ -7,7 +7,11 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "scan": "tsx src/scripts/scanRepo.ts"
+    "scan": "tsx src/scripts/scanRepo.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "@babel/parser": "^7.23.6",
