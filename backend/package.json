@@ -14,6 +14,7 @@
     "@babel/traverse": "^7.23.6",
     "@babel/types": "^7.23.6",
     "@fastify/cors": "^8.4.2",
+    "@fastify/rate-limit": "^7.6.0",
     "dotenv": "^16.3.1",
     "fastify": "^4.25.1",
     "neo4j-driver": "^5.15.0",

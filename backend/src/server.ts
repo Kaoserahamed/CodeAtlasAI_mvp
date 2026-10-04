@@ -1,71 +1,88 @@
 /**
- * CodeAtlas Backend Server
- * Main entry point for the API server
+ * Server entry point.
+ *
+ * Changes from the previous version:
+ *  - CORS is restricted to an explicit allowlist. It used to reflect any
+ *    origin, which let any site call the API from a user's browser.
+ *  - A missing database no longer kills the process. The server starts and
+ *    reports the degraded state through /api/health, so the UI can explain
+ *    the problem instead of the container crash-looping.
+ *  - Rate limiting and a request-id are in place, and shutdown closes the
+ *    database driver cleanly.
  */
-
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+import rateLimit from '@fastify/rate-limit';
 import { config } from './config';
 import { registerRoutes } from './api/routes';
 import { Neo4jClient } from './database/neo4jClient';
 
 const fastify = Fastify({
   logger: {
-    level: config.nodeEnv === 'development' ? 'info' : 'error',
+    level: config.nodeEnv === 'development' ? 'info' : 'warn',
   },
+  // A client-supplied body larger than this is rejected outright.
+  bodyLimit: 1_048_576,
+  genReqId: () => `req_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
 });
 
-async function start() {
+async function start(): Promise<void> {
   try {
-    // Register CORS
     await fastify.register(cors, {
-      origin: true, // Allow all origins in development
+      origin: config.corsOrigins,
+      credentials: true,
     });
 
-    // Test database connection
-    console.log('Testing Neo4j connection...');
+    await fastify.register(rateLimit, {
+      max: 120,
+      timeWindow: '1 minute',
+      // Health checks should not consume anyone else's budget.
+      allowList: (req) => req.url === '/api/health',
+    });
+
     const db = new Neo4jClient();
     const connected = await db.testConnection();
 
     if (!connected) {
-      console.error('Failed to connect to Neo4j. Please check your configuration.');
-      console.error('Make sure Neo4j is running and .env file is configured correctly.');
-      process.exit(1);
+      // Logged, not fatal: the API stays up so /api/health can be scraped and
+      // the frontend can show a clear message.
+      fastify.log.error(
+        'Neo4j is unreachable. The API will start but analysis will fail until it is available.'
+      );
+    } else {
+      await db.ensureSchema();
     }
 
-    // Register routes
     await registerRoutes(fastify);
 
-    // Start server
     const address = await fastify.listen({
       port: config.port,
       host: '0.0.0.0',
     });
 
-    console.log('\n=================================');
-    console.log('🚀 CodeAtlas Backend Server');
-    console.log('=================================');
-    console.log(`Server running at: ${address}`);
-    console.log(`Environment: ${config.nodeEnv}`);
-    console.log(`Neo4j: ${config.neo4j.uri}`);
-    console.log('\nAPI Endpoints:');
-    console.log(`  GET  ${address}/api/health`);
-    console.log(`  GET  ${address}/api/graph`);
-    console.log(`  GET  ${address}/api/stats`);
-    console.log(`  POST ${address}/api/scan`);
-    console.log(`  DELETE ${address}/api/graph`);
-    console.log('=================================\n');
+    fastify.log.info(`CodeAtlas API listening on ${address}`);
+    fastify.log.info(
+      `Database: ${connected ? 'connected' : 'DISCONNECTED'} | CORS origins: ${
+        config.corsOrigins === false ? 'same-origin only' : config.corsOrigins.join(', ')
+      }`
+    );
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);
   }
 }
 
-// Handle shutdown gracefully
-process.on('SIGINT', async () => {
-  console.log('\nShutting down gracefully...');
-  await fastify.close();
+async function shutdown(signal: string): Promise<void> {
+  fastify.log.info(`${signal} received, shutting down`);
+  try {
+    await fastify.close();
+  } catch {
+    // Best effort: the process is exiting regardless.
+  }
   process.exit(0);
-});
+}
 
-start();
+process.on('SIGINT', () => void shutdown('SIGINT'));
+process.on('SIGTERM', () => void shutdown('SIGTERM'));
+
+void start();

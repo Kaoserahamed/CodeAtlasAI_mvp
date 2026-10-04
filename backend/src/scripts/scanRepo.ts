@@ -1,59 +1,91 @@
 /**
- * Repository Scanning Script
- * Run this script to scan a repository and store it in Neo4j
- * 
- * Usage: npm run scan -- /path/to/repo
+ * Command-line scanner.
+ *
+ * Usage:
+ *   npm run scan -- /path/to/repo            incremental scan
+ *   npm run scan -- /path/to/repo --force    re-parse everything
+ *   npm run scan -- /path/to/repo --id owner/repo
+ *
+ * Runs through the same AnalysisService the API uses, so a CLI scan and an
+ * API scan produce identical graphs.
  */
-
-import { RepositoryScanner } from '../parser/repositoryScanner';
+import path from 'path';
 import { Neo4jClient } from '../database/neo4jClient';
-import { config } from '../config';
+import { AnalysisService } from '../services/analysisService';
+import { ParserRegistry } from '../parser/registry';
+import { isTreeSitterAvailable } from '../parser/languages/treeSitterLoader';
 
-async function main() {
-  const repoPath = process.argv[2] || config.targetRepoPath;
+async function main(): Promise<void> {
+  const args = process.argv.slice(2);
+  const target = args.find((a) => !a.startsWith('--'));
+  const force = args.includes('--force');
+  const idIndex = args.indexOf('--id');
+  const repoId =
+    idIndex >= 0 && args[idIndex + 1]
+      ? args[idIndex + 1]
+      : path.basename(target ?? '.').toLowerCase();
 
-  if (!repoPath) {
-    console.error('Error: Please provide a repository path');
-    console.error('Usage: npm run scan -- /path/to/repo');
+  if (!target) {
+    console.error('Usage: npm run scan -- <path> [--force] [--id owner/repo]');
     process.exit(1);
   }
 
-  console.log('=================================');
-  console.log('CodeAtlas Repository Scanner');
-  console.log('=================================');
-  console.log(`Target: ${repoPath}\n`);
+  const repoRoot = path.resolve(target);
+  const db = new Neo4jClient();
+
+  if (!(await db.testConnection())) {
+    console.error('Cannot reach Neo4j. Check NEO4J_URI and credentials.');
+    process.exit(1);
+  }
+
+  const registry = ParserRegistry.default();
+  if (!(await isTreeSitterAvailable())) {
+    console.warn(
+      'Warning: tree-sitter WASM unavailable; only JavaScript/TypeScript will be parsed.'
+    );
+  }
+
+  console.log(`Scanning ${repoRoot} as ${repoId}`);
+  console.log(`Languages: ${registry.languages.join(', ')}\n`);
+
+  const service = new AnalysisService({ db, registry });
 
   try {
-    // Test database connection
-    const db = new Neo4jClient();
-    const connected = await db.testConnection();
+    const result = await service.analyze(
+      { repoId, repoRoot, force },
+      {
+        progress: (fraction, message) => {
+          if (message) {
+            process.stdout.write(
+              `\r[${String(Math.round(fraction * 100)).padStart(3)}%] ${message.padEnd(50)}`
+            );
+          }
+        },
+        isCancelled: () => false,
+        signal: new AbortController().signal,
+      }
+    );
 
-    if (!connected) {
-      console.error('Failed to connect to Neo4j. Please check your configuration.');
-      process.exit(1);
-    }
-
-    // Scan repository
-    console.log('Scanning repository...\n');
-    const scanner = new RepositoryScanner();
-    const graph = scanner.scanDirectory(repoPath);
-
-    // Store in Neo4j
-    console.log('\nStoring graph in Neo4j...');
-    await db.storeGraph(graph);
-
-    console.log('\n=================================');
-    console.log('✓ Scan completed successfully!');
-    console.log('=================================');
-    console.log('You can now view the graph at: http://localhost:5173');
-    console.log('Or access the API at: http://localhost:3001/api/graph');
-    console.log('=================================\n');
-
+    process.stdout.write('\n\n');
+    console.log('Scan complete');
+    console.log(`  files:         ${result.files}`);
+    console.log(`  functions:     ${result.functions}`);
+    console.log(`  classes:       ${result.classes}`);
+    console.log(`  imports:       ${result.imports}`);
+    console.log(
+      `  calls:         ${result.calls} ` +
+        `(${result.resolvedCalls ?? 0} resolved, ${result.inferredCalls ?? 0} inferred, ` +
+        `${result.unknownCalls ?? 0} unresolved)`
+    );
+    console.log(`  changed files: ${result.changedFiles}`);
+    console.log(`  parse errors:  ${result.parseErrors}`);
+    console.log(`  duration:      ${(result.durationMs / 1000).toFixed(1)}s`);
+  } catch (err) {
+    console.error('\nScan failed:', err instanceof Error ? err.message : err);
+    process.exitCode = 1;
+  } finally {
     await db.close();
-  } catch (error) {
-    console.error('\n✗ Error during scan:', error);
-    process.exit(1);
   }
 }
 
-main();
+void main();
