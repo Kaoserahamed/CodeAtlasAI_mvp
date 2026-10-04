@@ -106,7 +106,9 @@ export class JavaScriptParser implements LanguageParser {
           if (!node.id) return;
           const cls = classCtx();
           const qualified = cls ? `${cls}.${node.id.name}` : node.id.name;
-          file.symbols.push(buildSymbol(node, qualified, 'Function', false));
+          file.symbols.push(
+            buildSymbol(node, qualified, 'Function', hasExportModifier(path))
+          );
           scopeStack.push(`fn:${qualified}`);
         },
         exit() {
@@ -159,7 +161,9 @@ export class JavaScriptParser implements LanguageParser {
           const cls = classCtx() || 'AnonymousClass';
           const propName = keyName(path.node.key) || 'field';
           const qualified = `${cls}.${propName}`;
-          file.symbols.push(buildSymbol(value, qualified, 'Method', false));
+          file.symbols.push(
+            buildSymbol(value, qualified, 'Method', hasExportModifier(path))
+          );
           scopeStack.push(`fn:${qualified}`);
         },
         exit(path) {
@@ -347,10 +351,15 @@ function paramText(param: any): string | null {
   }
 }
 
-/** True when the declaration is directly wrapped in an export statement. */
+/**
+ * True when a declaration is wrapped in an export statement.
+ *
+ * Babel keeps an exported declaration on the `declaration` field of the
+ * enclosing ExportNamedDeclaration, so the declaration's own parent chain does
+ * reach the export node and a short walk is enough.
+ */
 function hasExportModifier(path: NodePath | null | undefined): boolean {
   let cur: any = path;
-  // Only walk a couple of levels; walking to the root is O(depth) per node.
   for (let i = 0; cur && i < 4; i++) {
     const type = cur.node?.type;
     if (type === 'ExportNamedDeclaration' || type === 'ExportDefaultDeclaration') {

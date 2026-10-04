@@ -115,6 +115,30 @@ import * as ns from './y';`
     expect(fn?.complexity).toBeGreaterThan(1);
   });
 
+  it('marks exported declarations as exported', async () => {
+    // Regression: the visitor passed a hardcoded false here, so no symbol was
+    // ever flagged as exported and impact analysis could not identify the
+    // likeliest breakages.
+    const file = await parse(
+      'src/exported.ts',
+      `export function a() {}
+function hidden() {}
+export default function d() {}
+export const e = () => {};`
+    );
+
+    const byName = new Map(file.symbols.map((s) => [s.name, s.isExported]));
+    expect(byName.get('a')).toBe(true);
+    expect(byName.get('hidden')).toBe(false);
+    expect(byName.get('d')).toBe(true);
+    expect(byName.get('e')).toBe(true);
+  });
+
+  it('marks an exported class as exported', async () => {
+    const file = await parse('src/cls.ts', `export class Widget {}`);
+    expect(file.symbols.find((s) => s.kind === 'Class')?.isExported).toBe(true);
+  });
+
   it('maps supported extensions', () => {
     expect(parser.supports('.ts')).toBe(true);
     expect(parser.supports('.py')).toBe(false);
