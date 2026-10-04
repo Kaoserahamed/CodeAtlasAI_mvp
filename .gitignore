@@ -17,6 +17,13 @@ dist/
 .env.test.local
 .env.production.local
 
+# Vite reads .env files at build time and inlines them into the bundle, so
+# these are build inputs rather than local secrets. They are provided as
+# .env.example templates instead of tracked files.
+frontend/.env.production
+frontend/.env.development
+frontend/.env*.local
+
 # Logs
 logs
 *.log
