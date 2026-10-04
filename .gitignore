@@ -41,11 +41,18 @@ Thumbs.db
 data/
 logs/
 
+# Never commit provider credential dumps (e.g. Aura instance details)
+Neo4j-*.txt
+*-Created-*.txt
+
 # TypeScript
 *.tsbuildinfo
 
 # Exported graph data
 graph-export.json
+
+# Temporary cloned repositories
+backend/temp_repos/
 
 # Food Delivery Application (not needed in repo)
 FoodDelivery/
