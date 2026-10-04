@@ -94,8 +94,10 @@ export class JavaScriptParser implements LanguageParser {
     };
 
     // Babel's typings don't model `:exit` visitor keys, so the visitor map is typed
-    // explicitly and cast at the call site.
-    type Visitors = Record<string, (path: any) => void>;
+    // explicitly and cast at the call site. Both the shorthand `(path) => void`
+    // and the object form `{ enter, exit }` are accepted.
+    type VisitorFn = (path: any) => void;
+    type Visitors = Record<string, VisitorFn | { enter?: VisitorFn; exit?: VisitorFn }>;
     const visitors: Visitors = {
       // ---- declarations ------------------------------------------------
       FunctionDeclaration: {

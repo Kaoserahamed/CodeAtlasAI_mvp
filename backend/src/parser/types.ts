@@ -35,6 +35,7 @@ export interface LanguageParser {
 export function extname(path: string): string {
   const base = path.split('/').pop() || '';
   const dot = base.lastIndexOf('.');
+  // `dot === 0` means a dotfile such as `.gitignore`, which has no extension.
   return dot <= 0 ? '' : base.slice(dot).toLowerCase();
 }
 

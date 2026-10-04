@@ -1,104 +1,183 @@
 /**
- * Repository Scanner
- * Recursively scans a directory and parses all JS/TS files
+ * Repository scanner.
+ *
+ * Discovers files, hands each to the parser registry and returns per-file
+ * results. It deliberately does NOT resolve imports or calls across files:
+ * that is the resolver's job, and keeping the two separate is what allows
+ * incremental scans to re-resolve without re-parsing.
+ *
+ * Scanning is asynchronous and bounded by a concurrency limit so a large
+ * repository cannot exhaust memory or block the event loop.
  */
-
 import fs from 'fs';
+import fsp from 'fs/promises';
 import path from 'path';
-import { ASTParser } from './astParser';
-import { CodeGraph } from '../types';
-import { config } from '../config';
+import crypto from 'crypto';
+import { ParsedFile, PARSER_VERSION, toRepoRelative } from '../types';
+import { ParserRegistry } from './registry';
+import { extname } from './types';
+
+const IGNORED_DIRS = new Set([
+  'node_modules',
+  '.git',
+  '.hg',
+  '.svn',
+  'dist',
+  'build',
+  'out',
+  'coverage',
+  '.next',
+  '.nuxt',
+  '.svelte-kit',
+  '.cache',
+  '__pycache__',
+  '.venv',
+  'venv',
+  'vendor',
+  'target',
+  'bin',
+  'obj',
+  '.vscode',
+  '.idea',
+  '.gradle',
+  'Pods',
+]);
+
+/** Files above this size are skipped: they are almost always generated. */
+const MAX_FILE_BYTES = 1_500_000;
+
+export interface ScanOptions {
+  repoId: string;
+  repoRoot: string;
+  /** Only these paths are parsed; used for incremental scans. */
+  onlyPaths?: Set<string>;
+  onProgress?: (done: number, total: number, current: string) => void;
+  shouldCancel?: () => boolean;
+  concurrency?: number;
+}
+
+export interface ScanResult {
+  files: ParsedFile[];
+  /** Files that were found but could not be parsed. */
+  errors: { path: string; error: string }[];
+  skipped: string[];
+  totalDiscovered: number;
+  durationMs: number;
+}
 
 export class RepositoryScanner {
-  private parser: ASTParser;
-  private supportedExtensions: Set<string>;
+  private registry: ParserRegistry;
 
-  constructor() {
-    this.parser = new ASTParser();
-    this.supportedExtensions = new Set(config.supportedExtensions);
+  constructor(registry: ParserRegistry = ParserRegistry.default()) {
+    this.registry = registry;
   }
 
-  /**
-   * Scan a directory and extract code graph
-   */
-  scanDirectory(directoryPath: string): CodeGraph {
-    const graph: CodeGraph = {
-      files: [],
-      functions: [],
-      imports: [],
-      calls: [],
+  /** Walk the tree and return repo-relative paths of parseable files. */
+  async discoverFiles(repoRoot: string): Promise<string[]> {
+    const found: string[] = [];
+
+    const walk = async (dir: string): Promise<void> => {
+      let entries: fs.Dirent[];
+      try {
+        entries = await fsp.readdir(dir, { withFileTypes: true });
+      } catch {
+        return; // unreadable directory should not abort the scan
+      }
+
+      for (const entry of entries) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          if (IGNORED_DIRS.has(entry.name)) continue;
+          await walk(full);
+        } else if (entry.isFile()) {
+          const ext = extname(entry.name);
+          if (!this.registry.supports(ext)) continue;
+          try {
+            const stat = await fsp.stat(full);
+            if (stat.size > MAX_FILE_BYTES) continue;
+          } catch {
+            continue;
+          }
+          found.push(toRepoRelative(full, repoRoot));
+        }
+      }
     };
 
-    const files = this.getAllFiles(directoryPath);
-    console.log(`Found ${files.length} files to parse...`);
-
-    for (const file of files) {
-      try {
-        console.log(`Parsing: ${file}`);
-        const result = this.parser.parseFile(file);
-
-        graph.files.push(result.file);
-        graph.functions.push(...result.functions);
-        graph.imports.push(...result.imports);
-        graph.calls.push(...result.calls);
-      } catch (error) {
-        console.error(`Error parsing ${file}:`, error);
-      }
-    }
-
-    console.log('\n=== Scan Summary ===');
-    console.log(`Files: ${graph.files.length}`);
-    console.log(`Functions: ${graph.functions.length}`);
-    console.log(`Imports: ${graph.imports.length}`);
-    console.log(`Calls: ${graph.calls.length}`);
-
-    return graph;
+    await walk(repoRoot);
+    return found.sort();
   }
 
-  /**
-   * Recursively get all supported files in directory
-   */
-  private getAllFiles(dirPath: string, fileList: string[] = []): string[] {
-    const files = fs.readdirSync(dirPath);
+  async scan(options: ScanOptions): Promise<ScanResult> {
+    const started = Date.now();
+    const { repoId, repoRoot } = options;
 
-    for (const file of files) {
-      const filePath = path.join(dirPath, file);
-      const stat = fs.statSync(filePath);
+    const discovered = await this.discoverFiles(repoRoot);
+    const targets = options.onlyPaths
+      ? discovered.filter((p) => options.onlyPaths!.has(p))
+      : discovered;
 
-      if (stat.isDirectory()) {
-        // Skip common directories to ignore
-        if (this.shouldIgnoreDirectory(file)) {
-          continue;
+    const files: ParsedFile[] = [];
+    const errors: { path: string; error: string }[] = [];
+    const skipped: string[] = [];
+    let done = 0;
+
+    const limit = Math.max(1, options.concurrency ?? 8);
+    let cursor = 0;
+    let cancelled = false;
+
+    const worker = async (): Promise<void> => {
+      for (;;) {
+        if (cancelled || options.shouldCancel?.()) {
+          cancelled = true;
+          return;
         }
-        this.getAllFiles(filePath, fileList);
-      } else if (stat.isFile()) {
-        const ext = path.extname(file);
-        if (this.supportedExtensions.has(ext)) {
-          fileList.push(filePath);
+        const index = cursor++;
+        if (index >= targets.length) return;
+        const relPath = targets[index];
+
+        try {
+          const absolute = path.join(repoRoot, relPath);
+          // Guard against traversal via symlinks or odd path shapes.
+          if (!absolute.startsWith(path.resolve(repoRoot))) {
+            skipped.push(relPath);
+            continue;
+          }
+          const content = await fsp.readFile(absolute, 'utf-8');
+          const parser = this.registry.get(relPath);
+          if (!parser) {
+            skipped.push(relPath);
+            continue;
+          }
+          const parsed = await parser.parse({ repoId, path: relPath, content });
+          if (parsed.error) {
+            errors.push({ path: relPath, error: parsed.error });
+          } else {
+            files.push(parsed);
+          }
+        } catch (err: any) {
+          errors.push({ path: relPath, error: err?.message || 'read failed' });
+        } finally {
+          done++;
+          options.onProgress?.(done, targets.length, relPath);
         }
       }
-    }
+    };
 
-    return fileList;
-  }
+    await Promise.all(Array.from({ length: limit }, () => worker()));
 
-  /**
-   * Check if directory should be ignored
-   */
-  private shouldIgnoreDirectory(dirName: string): boolean {
-    const ignoreDirs = [
-      'node_modules',
-      '.git',
-      'dist',
-      'build',
-      'coverage',
-      '.next',
-      '.nuxt',
-      'out',
-      '__pycache__',
-      '.vscode',
-      '.idea',
-    ];
-    return ignoreDirs.includes(dirName);
+    return {
+      files,
+      errors,
+      skipped,
+      totalDiscovered: discovered.length,
+      durationMs: Date.now() - started,
+    };
   }
 }
+
+/** Stable content fingerprint used to decide what needs re-parsing. */
+export function fingerprint(content: string): string {
+  return crypto.createHash('sha256').update(content, 'utf8').digest('hex');
+}
+
+export { PARSER_VERSION };
