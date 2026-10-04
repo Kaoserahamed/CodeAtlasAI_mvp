@@ -5,7 +5,13 @@
  * value must not survive anywhere in the output, not even in a preview.
  */
 import { describe, it, expect } from 'vitest';
-import { CodeIndex, buildChunks, tokenize } from '../../src/services/codeIndex';
+import {
+  CodeIndex,
+  buildChunks,
+  tokenize,
+  stem,
+  termsMatch,
+} from '../../src/services/codeIndex';
 import {
   scanContent,
   redactForPrompt,
@@ -122,6 +128,35 @@ describe('buildChunks', () => {
     // Both are semantically close; the exact name match must still win.
     const blended = index.combineWithVectors(index.search('login'), [1, 0], 0.35);
     expect(blended[0].chunk.id).toBe('a');
+  });
+
+  it('matches related word forms via stemming', async () => {
+    // The canonical product question: "Where is user authentication
+    // implemented?" must find authenticateUser, not return nothing.
+    const source = 'export function authenticateUser(creds) { return creds; }';
+    const g = await graphOf([{ path: 'src/auth.ts', content: source }]);
+    const index = new CodeIndex();
+    index.build(buildChunks(REPO, g.nodes, new Map([['src/auth.ts', source]])));
+
+    const results = index.search('Where is user authentication implemented?');
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0].chunk.symbolName).toBe('authenticateUser');
+  });
+
+  it('stem reduces common derivational suffixes', () => {
+    expect(stem('authentication')).toBe(stem('authenticate'));
+    expect(stem('sessions')).toBe(stem('session'));
+    // Short words are left alone rather than mangled.
+    expect(stem('user')).toBe('user');
+    expect(stem('work')).toBe('work');
+  });
+
+  it('termsMatch requires a meaningful shared prefix', () => {
+    expect(termsMatch('authentication', 'authenticate')).toBe(true);
+    expect(termsMatch('sessions', 'session')).toBe(true);
+    expect(termsMatch('login', 'logout')).toBe(false);
+    // Short, unrelated words must not match on a couple of letters.
+    expect(termsMatch('add', 'address')).toBe(false);
   });
 
   it('computes cosine similarity defensively', () => {

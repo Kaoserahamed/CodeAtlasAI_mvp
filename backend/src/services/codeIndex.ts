@@ -181,6 +181,85 @@ function buildSearchable(symbol: GraphNodeBase, text: string): string {
 }
 
 /**
+ * Common derivational suffixes, longest first so `ation` is stripped before
+ * `ion`.
+ *
+ * Only long, unambiguous endings are listed. Aggressive stemming ("running" to
+ * "runn") tends to collapse distinct identifiers together, which on code is
+ * worse than missing a match.
+ */
+const SUFFIXES = [
+  'ization', 'isation', 'ation', 'ition', 'ating', 'ement', 'ments',
+  'ment', 'ness', 'able', 'ible', 'ance', 'ence', 'ings', 'ing', 'ies',
+  'ion', 'ate', 'ity', 'ies', 'ers', 'er', 'ed', 'es', 's', 'e',
+];
+
+/**
+ * Reduce a term to a crude stem.
+ *
+ * This exists because developers do not search using identifier names. Asking
+ * about "authentication" must find `authenticate`, and "sessions" must find
+ * `session`. A real stemmer would be better, but this is predictable and, more
+ * importantly, never merges two identifiers a developer would consider
+ * distinct.
+ *
+ * Two guards keep it conservative:
+ *  - A stripped result must be at least five characters, so short nouns are not
+ *    mangled. Without this, `session` becomes `sess` and no longer matches
+ *    `sessions`.
+ *  - A suffix is only applied if it actually removes something, so `session`
+ *    does not try the trailing `s` rule and reduce to itself.
+ */
+export function stem(token: string): string {
+  if (token.length <= 5) return token;
+
+  for (const suffix of SUFFIXES) {
+    if (!token.endsWith(suffix)) continue;
+    const base = token.slice(0, -suffix.length);
+    // Require a substantial, actually-shorter stem.
+    if (base.length >= 5 && base !== token) return base;
+  }
+  return token;
+}
+
+/**
+ * Do two terms refer to the same thing closely enough to match?
+ *
+ * Exact equality is too strict for code, so this compares stems first and then
+ * allows a shared prefix. A prefix floor of five characters is required, since
+ * without it short words match on a couple of characters and every search
+ * returns noise.
+ */
+export function termsMatch(a: string, b: string): boolean {
+  if (a === b) return true;
+
+  // Stemming absorbs the common derivational pairs: authentication/authenticate.
+  const stemmedA = stem(a);
+  const stemmedB = stem(b);
+  if (stemmedA === stemmedB) return true;
+
+  const shorter = stemmedA.length <= stemmedB.length ? stemmedA : stemmedB;
+  const longer = stemmedA.length <= stemmedB.length ? stemmedB : stemmedA;
+
+  if (shorter.length >= 5 && longer.startsWith(shorter)) return true;
+
+  // A trailing plural is common and cheap to absorb.
+  if (shorter.length >= 4 && longer === `${shorter}s`) return true;
+
+  return false;
+}
+
+/** True when any term in `candidates` matches any term in `queryTerms`. */
+export function anyTermMatches(
+  candidates: string[],
+  queryTerms: string[]
+): boolean {
+  return candidates.some((candidate) =>
+    queryTerms.some((term) => termsMatch(candidate, term))
+  );
+}
+
+/**
  * In-memory lexical index with optional vector search.
  *
  * Lexical retrieval (BM25-style term weighting) is the baseline and is always
@@ -198,6 +277,8 @@ export interface IndexStats {
 export class CodeIndex {
   private chunks: CodeChunk[] = [];
   private termFrequency = new Map<number, Map<string, number>>();
+  /** Per chunk, term counts keyed by stem, so related words can score. */
+  private stemFrequency = new Map<number, Map<string, number>>();
   private documentFrequency = new Map<string, number>();
   private chunkTokens: string[][] = [];
   private averageLength = 0;
@@ -207,6 +288,7 @@ export class CodeIndex {
   build(chunks: CodeChunk[]): void {
     this.chunks = chunks;
     this.termFrequency = new Map();
+    this.stemFrequency = new Map();
     this.documentFrequency = new Map();
     this.chunkTokens = [];
     this.embedded = chunks.some((c) => Array.isArray(c.embedding));
@@ -219,11 +301,22 @@ export class CodeIndex {
       totalLength += tokens.length;
 
       const tf = new Map<string, number>();
+      const stemTf = new Map<string, number>();
+
       for (const token of tokens) {
         tf.set(token, (tf.get(token) ?? 0) + 1);
         this.documentFrequency.set(token, (this.documentFrequency.get(token) ?? 0) + 1);
+
+        // Stemmed counts let a query for "authentication" score a chunk that
+        // only ever says "authenticate".
+        const stemmed = stem(token);
+        if (stemmed !== token) {
+          stemTf.set(stemmed, (stemTf.get(stemmed) ?? 0) + 1);
+        }
       }
+
       this.termFrequency.set(index, tf);
+      this.stemFrequency.set(index, stemTf);
     });
 
     this.averageLength = chunks.length ? totalLength / chunks.length : 1;
@@ -266,9 +359,12 @@ export class CodeIndex {
 
       let score = 0;
       let matched = 0;
+      const stemTf = this.stemFrequency.get(i);
 
       for (const term of queryTerms) {
-        const f = tf.get(term);
+        // Fall back to a stem match so related word forms still contribute.
+        const stemmed = stem(term);
+        const f = tf.get(term) ?? stemTf?.get(stemmed);
         if (!f) continue;
         matched++;
 
@@ -286,16 +382,15 @@ export class CodeIndex {
       const chunk = this.chunks[i];
 
       if (chunk.symbolName) {
-        const nameTokens = tokenize(chunk.symbolName);
-        if (nameTokens.some((t) => strongTerms.has(t))) {
+        // Prefix-tolerant so "authentication" finds `authenticateUser`.
+        if (anyTermMatches(tokenize(chunk.symbolName), queryTerms)) {
           score *= 1.6;
           reasons.push('symbol name matches a query term');
         }
       }
 
       if (chunk.path && strongTerms.size > 0) {
-        const pathTokens = tokenize(chunk.path);
-        if (pathTokens.some((t) => strongTerms.has(t))) {
+        if (anyTermMatches(tokenize(chunk.path), queryTerms)) {
           score *= 1.2;
           reasons.push('file path matches a query term');
         }
