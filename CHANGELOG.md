@@ -16,9 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   checking `/api/health`, structured logging, and graceful degradation when
   Neo4j is absent. `npm audit --omit=dev` now reports zero vulnerabilities.
 - **Tests are now runnable and run in CI.** The Vitest suite already existed
-  but no `test` script did, so nothing could execute it. `npm test`,
-  `npm run typecheck` and `npm run lint` now cover the whole monorepo and are
-  enforced on every push and pull request.
+  but no `test` script did, so nothing could execute it. `npm test` now covers
+  both workspaces and is enforced on every push and pull request.
 - **Deployment waits for CI.** The Pages deploy triggers on a successful `CI`
   run rather than on every push to `main`.
 - **Frontend environment files are no longer tracked.** They are build
@@ -31,9 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- A frontend test setup: Vitest with jsdom, Testing Library, and 14 specs
-  covering the API client's request shaping and error envelope. The frontend
-  previously had no test runner and no specs at all.
+- A frontend test setup: Vitest with jsdom, Testing Library, and 30 specs
+  covering the API client's request shaping and error envelope, the processing
+  screen, and the graph canvas's data transformation. The frontend previously
+  had no test runner and no specs at all.
 - Docker Compose stack for Neo4j, so local development and the integration
   tests do not need Neo4j Desktop or a hosted Aura instance.
 - `npm run test:ci`, which starts that database, waits for it, runs the

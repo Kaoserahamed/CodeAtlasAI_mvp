@@ -84,7 +84,7 @@ C#. Public repositories need no configuration; private ones need a
 ### 5. Verify the install
 
 ```bash
-npm test          # 124 tests
+npm test          # 196 tests across both workspaces
 npm run typecheck
 npm run lint
 ```
@@ -92,7 +92,7 @@ npm run lint
 To include the two database integration tests:
 
 ```bash
-npm run test:ci --workspace=backend
+npm run test:ci
 ```
 
 ## Understanding the Graph
@@ -200,10 +200,12 @@ npm run dev:backend      # Backend only
 npm run dev:frontend     # Frontend only
 
 # Tests
-npm test                 # Full suite (skips the 2 database tests)
+npm test                 # Both workspaces (backend + frontend)
+npm run test:backend     # Backend only
+npm run test:frontend    # Frontend only
 npm run test:watch       # Watch mode
 npm run test:coverage    # Coverage report
-npm run test:ci --workspace=backend   # Includes the database tests
+npm run test:ci          # Includes the Neo4j integration tests
 
 # Quality gates — the same three commands CI runs
 npm run typecheck
