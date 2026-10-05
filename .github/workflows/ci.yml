@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# A new push makes the previous run's result irrelevant, so cancel it.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Test, typecheck and lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      # npm workspaces hoist both workspaces' dependencies to the root
+      # node_modules, so one install at the root sets up everything. The
+      # committed lockfile makes that reproducible.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+  audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      # Scoped to production dependencies deliberately. These are the packages
+      # that ship and run in the container; the remaining advisories are all
+      # in build-time devDependencies (Vite, Tailwind, typescript-eslint),
+      # which a user of the deployed app cannot exploit. This job exists to
+      # catch a real runtime vulnerability on the pull request, so it has to
+      # stay green or it will be ignored.
+      #
+      # Dev-dependency advisories are tracked separately: Dependabot opens
+      # weekly upgrade PRs, and `npm audit` prints the full report locally.
+      - name: Audit runtime dependencies
+        run: npm audit --omit=dev --audit-level=high
