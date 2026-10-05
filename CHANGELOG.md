@@ -31,6 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A frontend test setup: Vitest with jsdom, Testing Library, and 14 specs
+  covering the API client's request shaping and error envelope. The frontend
+  previously had no test runner and no specs at all.
 - Docker Compose stack for Neo4j, so local development and the integration
   tests do not need Neo4j Desktop or a hosted Aura instance.
 - `npm run test:ci`, which starts that database, waits for it, runs the
@@ -49,6 +52,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Analyze Repository 404d against this backend.** The API client requested
+  `/api/analyze-github` and `/api/job/:jobId`; the backend serves
+  `/api/repositories/analyze` and `/api/jobs/:jobId`. The client had drifted
+  from the routes and nothing caught it, because the frontend had no tests.
+  Both paths are corrected, pinned by the new specs.
+- `scanRepository` and `getStats` were removed from the client. They called
+  `/api/scan` and `/api/stats`, neither of which exists, and neither was
+  referenced anywhere. The stats route that does exist is scoped to a
+  repository id the client has no way to supply.
 - **A fresh clone could not run the test suite.** `tree-sitter-wasms`, which
   supplies the WASM grammars the multi-language parsers load at runtime, was in
   no package.json and had no entry in the lockfile. It existed only in a local

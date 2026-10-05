@@ -40,27 +40,6 @@ export const api = {
   },
 
   /**
-   * Trigger repository scan
-   */
-  async scanRepository(path: string): Promise<ApiResponse<GraphData>['data']> {
-    const response = await fetch(`${API_BASE}/scan`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ path }),
-    });
-
-    const json: ApiResponse<GraphData> = await response.json();
-
-    if (!json.success) {
-      throw new Error(json.error || 'Failed to scan repository');
-    }
-
-    return json.data;
-  },
-
-  /**
    * Clear graph data
    */
   async clearGraph(): Promise<void> {
@@ -84,24 +63,13 @@ export const api = {
   },
 
   /**
-   * Get graph statistics
-   */
-  async getStats(): Promise<ApiResponse<GraphData>['data']> {
-    const response = await fetch(`${API_BASE}/stats`);
-    const json: ApiResponse<GraphData> = await response.json();
-
-    if (!json.success) {
-      throw new Error(json.error || 'Failed to fetch stats');
-    }
-
-    return json.data;
-  },
-
-  /**
-   * Analyze GitHub repository
+   * Queue an analysis run.
+   *
+   * The route is /api/repositories/analyze; the backend answers 202 with the
+   * job id at the top level of the body rather than inside `data`.
    */
   async analyzeGitHubRepository(repoUrl: string): Promise<{ jobId: string }> {
-    const response = await fetch(`${API_BASE}/analyze-github`, {
+    const response = await fetch(`${API_BASE}/repositories/analyze`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -119,10 +87,12 @@ export const api = {
   },
 
   /**
-   * Get job status
+   * Get job status.
+   *
+   * The route is /api/jobs/:jobId; the plural matters, the singular 404s.
    */
   async getJobStatus(jobId: string): Promise<Job> {
-    const response = await fetch(`${API_BASE}/job/${jobId}`);
+    const response = await fetch(`${API_BASE}/jobs/${jobId}`);
     const json: ApiResponse<Job> = await response.json();
 
     if (!json.success || !json.data) {
