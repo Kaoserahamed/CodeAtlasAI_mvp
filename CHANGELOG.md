@@ -62,9 +62,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   write helpers (17 tests). Neither had any coverage before, and the queue is
   where a leaked slot or a dropped cancellation stays invisible until
   production.
+- A test that keeps `backend/.env.example` in step with the variables the
+  backend actually reads, so an undocumented variable fails the build instead
+  of being discovered by whoever needed it.
 
 ### Fixed
 
+- **A supported variable was undocumented.** `GH_TOKEN` is read in
+  `githubService` and `routes` as an alternative to `GITHUB_TOKEN`, but was
+  absent from `backend/.env.example`, so anyone setting it from the example
+  file had no way to know it worked.
+- **`backend/.env.example` did not match the Compose database.** It shipped
+  `NEO4J_PASSWORD=password` while `docker-compose.yml` uses
+  `codeatlas-local`, so the documented quick start could not connect without
+  a manual edit. The example now matches, so `docker compose up -d` followed
+  by `cp .env.example .env` works with no changes.
 - **Analyze Repository 404d against this backend.** The API client requested
   `/api/analyze-github` and `/api/job/:jobId`; the backend serves
   `/api/repositories/analyze` and `/api/jobs/:jobId`. The client had drifted
