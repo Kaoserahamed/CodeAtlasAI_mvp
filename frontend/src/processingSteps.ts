@@ -1,5 +1,9 @@
 import type { ProcessingStep } from './components/ProcessingStatus';
 
+// Re-exported so tests and callers can import the type alongside the data
+// without reaching into the component module for a type-only symbol.
+export type { ProcessingStep };
+
 /**
  * Default pipeline shown while a repository is analysed.
  *
