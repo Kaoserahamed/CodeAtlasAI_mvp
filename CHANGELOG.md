@@ -40,7 +40,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   config file existed.
 - Dependabot, watching the root, backend and frontend manifests plus the
   GitHub Actions pins.
-- `CONTRIBUTING.md` describing the test-and-commit conventions.
+- `CHANGELOG.md` and `CONTRIBUTING.md`, the latter documenting the test and
+  commit conventions this history had been weakest on.
+- Test coverage for the background job queue (25 tests) and for the batched
+  write helpers (17 tests). Neither had any coverage before, and the queue is
+  where a leaked slot or a dropped cancellation stays invisible until
+  production.
 
 ### Fixed
 
@@ -60,3 +65,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   union, and now narrows on the field itself.
 - **Environment files stopped being tracked**, and the generated
   `graph-export.json` is no longer committed.
+- `neo4jClient.ts` no longer mixes owning the connection with constructing
+  Cypher. The batched write path moved to `neo4jWriter.ts`, bringing the file
+  from 566 to 464 lines and leaving every source file under 500.
+- `railway.nixpacks.toml`, a byte-identical copy of `nixpacks.toml`, was
+  removed; only the file Nixpacks reads is kept.
