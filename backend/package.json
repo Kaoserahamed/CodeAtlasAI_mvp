@@ -37,8 +37,8 @@
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
     "eslint": "^8.57.1",
-    "prettier": "^3.3.3",
-    "tsx": "^4.7.0",
+    "prettier": "^3.9.9",
+    "tsx": "^4.23.15",
     "typescript": "^5.3.3",
     "vitest": "^4.1.11"
   }
