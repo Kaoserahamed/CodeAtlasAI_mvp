@@ -1,7 +1,12 @@
 name: Deploy to GitHub Pages
 
+# Gated on the CI workflow rather than on a raw push. `needs:` only orders
+# jobs inside one workflow, so the cross-workflow gate is workflow_run: the
+# deploy starts only after CI has finished successfully on main.
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 
@@ -16,10 +21,19 @@ concurrency:
 
 jobs:
   build:
+    # Skip when CI concluded anything other than success, so a red run cannot
+    # publish. The event carries the run's conclusion, not the workflow's.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        # workflow_run reports the workflow file from the default branch but
+        # must check out the commit that actually passed CI.
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
