@@ -10,6 +10,7 @@ import { LandingPage } from './components/LandingPage';
 import { ProcessingStatus, ProcessingStep } from './components/ProcessingStatus';
 import { defaultProcessingSteps } from './processingSteps';
 import { api, Job } from './services/api';
+import { logger } from './services/logger';
 import { GraphData, GraphNode } from './types';
 import { AlertCircle } from 'lucide-react';
 import { isDemoMode, demoGraphData } from './demo-data';
@@ -80,8 +81,8 @@ function App() {
       setGraphData(data);
       setCurrentView('graph');
     } catch (err) {
-      console.error('Analysis error:', err);
       const message = err instanceof Error ? err.message : 'Failed to analyze repository';
+      logger.error('App', 'repository analysis failed', { error: err, repoUrl });
       setError(message);
       updateProcessingSteps({ status: 'failed', message } as Job);
     } finally {
@@ -164,8 +165,8 @@ function App() {
       const data = await api.fetchGraph();
       setGraphData(data);
     } catch (err) {
+      logger.error('App', 'loading the graph failed', { error: err });
       setError(err instanceof Error ? err.message : 'Failed to load graph data');
-      console.error('Error loading graph:', err);
     } finally {
       setIsLoading(false);
     }

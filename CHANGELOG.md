@@ -30,6 +30,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A frontend error boundary. A render error previously unmounted the whole app
+  and left a blank page with the reason only in a console the developer had to
+  already have open. The fallback states what happened, offers a retry and a
+  reload, and logs through the client logger.
+- A structured client logger (`services/logger.ts`) giving the browser the same
+  timestamp, level and component shape the backend gets from pino. The API
+  client routes every request through one helper, so a failure in the transport
+  and one the server rejected are now distinguishable, and both name the route
+  that failed. 17 specs cover the two.
 - A devcontainer (`Reopen in Container`) pinning Node 20, installing from the
   lockfile and starting the Compose database on open, so a fresh clone needs
   no setup decisions. The manual path is still documented for anyone not using

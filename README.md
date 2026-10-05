@@ -239,6 +239,12 @@ curl localhost:3001/api/metrics
 
 Counters are cumulative since process start and reset on restart.
 
+The browser side is symmetric. `services/logger.ts` emits the same
+timestamp/level/component shape as pino, and every API call goes through one
+helper, so a failed request logs the route, the method and the reason. An
+error boundary wraps the app so a render failure shows a readable fallback with
+the error message and a retry rather than a blank page.
+
 ## Commands
 
 ```bash
