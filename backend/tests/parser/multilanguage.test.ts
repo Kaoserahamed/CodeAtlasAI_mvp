@@ -15,8 +15,6 @@ beforeAll(async () => {
   available = await isTreeSitterAvailable();
 });
 
-const maybe = (fn: () => void) => (available ? fn : () => undefined);
-
 describe('ParserRegistry', () => {
   it('routes extensions to the right parser', () => {
     expect(registry.get('.ts')?.id).toBe('javascript');
