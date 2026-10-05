@@ -1,59 +1,69 @@
-CodeAtlas AI (MVP)
-Ever tried jumping into a completely unfamiliar codebase and wished you had a literal map? That's why I built CodeAtlas AI. It’s a tool that parses JavaScript and TypeScript projects, extracts relationships between files and functions, and throws them onto an interactive graph.
+# CodeAtlas AI
+
+Ever tried jumping into a completely unfamiliar codebase and wished you had a literal map? That's why I built CodeAtlas AI. It parses source repositories, extracts the relationships between files and functions, and throws them onto an interactive graph.
 
 Instead of reading raw code to figure out imports or tracking down where a function is called, you can visualize it.
 
 ## 🚀 [Live Demo](https://kaoserahamed.github.io/CodeAtlasAI_mvp/)
 
-Try the interactive demo with a pre-loaded Food Delivery application graph - no installation required!
+Try the deployed application - analyze any public GitHub repository and visualize its code structure!
+
+**🔗 Application URL:** https://kaoserahamed.github.io/CodeAtlasAI_mvp/  
+**⚙️ Backend API:** https://profound-unity-production-c405.up.railway.app
 
 ## Features
 
-- 🔍 **AST-based Parsing** - Analyzes JavaScript/TypeScript using Babel parser
+- 🌐 **GitHub Integration** - Analyze any public GitHub repository directly from the web interface
+- 🔍 **Multi-language Parsing** - Babel for JavaScript and TypeScript, tree-sitter WASM grammars for Python, Go, Java, Ruby, Rust and C#
 - 📊 **Graph Database** - Stores relationships in Neo4j
 - 🎨 **Interactive Visualization** - React Flow-based graph canvas with zoom/pan
 - 🔗 **Relationship Tracking** - Visualizes imports and function calls
-- 📱 **Details Panel** - Click nodes to see incoming/outgoing connections
+- 🔍 **Code Search & Quality Analysis** - Indexed retrieval, complexity hotspots, duplication and dead code
+- 🧭 **Change Impact Analysis** - Blast radius of an edit, plus circular dependency detection
+- 🔐 **Secret Detection** - Credential patterns reported as a location and a non-reversible fingerprint
+- ⚡ **Background Jobs** - Analysis runs on a bounded queue; the API returns a job id immediately
 
 ## Quick Start
 
 ### Prerequisites
 
-- **Node.js** 18+ 
-- **Neo4j Desktop** - [Download here](https://neo4j.com/download/)
+- **Node.js 20+**
+- **Docker** — only for the local database. Not required if you already have
+  a Neo4j instance; the backend starts without one and reports the degraded
+  state through `/api/health` rather than crash-looping.
+- **Git** — for cloning repositories.
 
-### 1. Setup Neo4j Desktop
+### 1. Start a database
 
-1. Open Neo4j Desktop
-2. Create a new database with any name (e.g., `codeatlas`)
-3. Set a secure password (you'll use this in step 2)
-4. Click "Start" and wait for "Active" status
-5. Verify connection at http://localhost:7474
+```bash
+docker compose up -d
+```
 
-### 2. Configure Backend
+That gives you Neo4j 5 on `bolt://127.0.0.1:7687`, with credentials
+`neo4j` / `codeatlas-local`. The browser is at http://localhost:7474. Stop it
+with `docker compose down -v`.
 
-1. Navigate to `backend/` folder
-2. Copy `.env.example` to `.env`:
-   ```bash
-   cd backend
-   cp .env.example .env
-   ```
-3. Edit `.env` with your Neo4j credentials:
-   ```env
-   NEO4J_URI=bolt://127.0.0.1:7687
-   NEO4J_USER=neo4j
-   NEO4J_PASSWORD=your_password_here
-   PORT=3001
-   ```
+Already have Neo4j? Skip this and put its URI in `backend/.env`.
+
+### 2. Configure the backend
+
+```bash
+cp backend/.env.example backend/.env
+```
+
+With the Compose defaults:
+
+```env
+NEO4J_URI=bolt://127.0.0.1:7687
+NEO4J_USER=neo4j
+NEO4J_PASSWORD=codeatlas-local
+PORT=3001
+```
 
 ### 3. Install & Run
 
 ```bash
-# Install dependencies
-npm install
-npm run install:all
-
-# Start application
+npm install   # installs both workspaces
 npm run dev
 ```
 
@@ -61,20 +71,29 @@ Servers will start:
 - Frontend: http://localhost:5173
 - Backend: http://localhost:3001
 
-### 3. Scan Code
+### 4. Analyze a repository
+
+Open http://localhost:5173, enter a GitHub repository URL, and click
+**Analyze Repository**. Analysis runs in the background, so you can watch the
+job progress while it clones, parses, and writes the graph.
+
+Supported languages: JavaScript, TypeScript, Python, Go, Java, Ruby, Rust and
+C#. Public repositories need no configuration; private ones need a
+`GITHUB_TOKEN`.
+
+### 5. Verify the install
 
 ```bash
-# In a new terminal
-cd backend
-npm run scan
-
-# Or scan your own project
-npm run scan -- "C:\path\to\your\project"
+npm test          # 124 tests
+npm run typecheck
+npm run lint
 ```
 
-### 4. View Graph
+To include the two database integration tests:
 
-Open http://localhost:5173 and explore your code graph!
+```bash
+npm run test:ci --workspace=backend
+```
 
 ## Understanding the Graph
 
@@ -87,24 +106,64 @@ Open http://localhost:5173 and explore your code graph!
 - Click any node to see details
 - Scroll to zoom in/out
 - Drag to pan around
+- Click "New Analysis" to analyze another repository
 - Click "Refresh" to reload data
+
+## How to Use
+
+### Option 1: Analyze GitHub Repository (Web Interface)
+
+1. **Start the application** (see Quick Start above)
+2. **Open http://localhost:5173**
+3. **Enter a GitHub repository URL** (e.g., `https://github.com/lodash/lodash`)
+4. **Click "Analyze Repository"**
+5. **Watch the processing** - cloning, analyzing, building graph
+6. **Explore the visualization** - interactive graph with your codebase
+
+**Supported:**
+- ✅ Public GitHub repositories
+- ✅ JavaScript, TypeScript, Python, Go, Java, Ruby, Rust and C#
+- ✅ Repositories of any size (larger repos take longer)
+
+**Example repositories to try:**
+```
+https://github.com/lodash/lodash
+https://github.com/expressjs/express
+https://github.com/axios/axios
+https://github.com/chalk/chalk
+```
+
+### Option 2: Analyze Local Code (Command Line)
+
+```bash
+cd backend
+npm run scan -- "C:\path\to\your\project"
+```
+
+Then refresh the web interface to see the graph.
 
 ## Project Structure
 
 ```
 codeatlas-ai/
-├── backend/          # Node.js + TypeScript + Fastify
+├── backend/            # Node.js + TypeScript + Fastify
 │   ├── src/
-│   │   ├── api/     # REST endpoints
-│   │   ├── database/# Neo4j integration
-│   │   ├── parser/  # Babel AST parser
+│   │   ├── api/        # REST endpoints, JSON-schema validated
+│   │   ├── config/     # Environment configuration
+│   │   ├── database/   # Neo4j client
+│   │   ├── parser/     # Parser registry, Babel and tree-sitter backends
+│   │   ├── resolver/   # Module and symbol resolution
+│   │   ├── services/   # Analysis, indexing, quality, jobs
 │   │   └── server.ts
-│   └── .env         # Configuration
-├── frontend/        # React + TypeScript + Tailwind
+│   ├── tests/          # Vitest suite
+│   └── .env.example
+├── frontend/           # React + TypeScript + Tailwind
 │   └── src/
-│       ├── components/  # Graph visualization
-│       └── services/    # API client
-└── sample-repo/    # Test data
+│       ├── components/ # Graph visualization
+│       └── services/   # API client
+├── sample-repo/        # Test data
+├── docker-compose.yml  # Local Neo4j
+└── package.json        # Workspaces
 ```
 
 
@@ -115,10 +174,22 @@ codeatlas-ai/
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/health` | Health check |
-| GET | `/api/graph` | Fetch graph data |
-| POST | `/api/scan` | Trigger scan |
-| DELETE | `/api/graph` | Clear data |
+| GET | `/api/health` | Health and database status |
+| GET | `/api/capabilities` | Languages, extensions and which optional features are enabled |
+| GET | `/api/repositories` | List analysed repositories |
+| POST | `/api/repositories/validate` | Validate a repository URL without cloning |
+| POST | `/api/repositories/analyze` | Queue an analysis; returns `202` with a job id |
+| GET | `/api/jobs` | List analysis jobs |
+| GET | `/api/jobs/:jobId` | Job status and progress |
+| DELETE | `/api/jobs/:jobId` | Cancel a running job |
+| GET | `/api/graph` | Fetch graph nodes and edges |
+| GET | `/api/repositories/:repoId/stats` | File, function and relationship counts |
+| GET | `/api/repositories/:repoId/nodes/:nodeId/neighbors` | Expand one node's neighborhood |
+| GET | `/api/repositories/:repoId/search` | Search indexed symbols and content |
+| DELETE | `/api/repositories/:repoId` | Delete a repository's subgraph |
+
+Every request body is validated against a JSON schema before the handler
+runs, and errors return a consistent `{ success: false, error }` envelope.
 
 ## Commands
 
@@ -128,41 +199,105 @@ npm run dev              # Start both servers
 npm run dev:backend      # Backend only
 npm run dev:frontend     # Frontend only
 
-# Scanning
-cd backend
-npm run scan             # Scan sample repo
-npm run scan -- <path>   # Scan custom repo
+# Tests
+npm test                 # Full suite (skips the 2 database tests)
+npm run test:watch       # Watch mode
+npm run test:coverage    # Coverage report
+npm run test:ci --workspace=backend   # Includes the database tests
+
+# Quality gates — the same three commands CI runs
+npm run typecheck
+npm run lint
+npm run format           # Prettier, write
+npm run format:check     # Prettier, check only
 
 # Build
-npm run build            # Build both
+npm run build            # Build both workspaces
 
-# Demo Deployment (Static)
-cd frontend
-npm run build:demo       # Build demo with pre-loaded data
-npm run preview:demo     # Preview demo locally
+# Local database
+docker compose up -d     # Start Neo4j
+docker compose down -v   # Stop and discard data
+
+# Scan a local directory (from backend/)
+npm run scan -- <path>
 ```
 
-See [DEMO_DEPLOYMENT.md](./DEMO_DEPLOYMENT.md) for deploying to GitHub Pages, Netlify, or Vercel.
+The static demo deploys to GitHub Pages automatically after CI passes on
+`main`. To build and preview it locally:
+
+```bash
+cd frontend
+npm run build:demo
+npm run preview:demo
+```
 
 ## Troubleshooting
 
 **Backend won't start:**
-- Open Neo4j Desktop and start your database
-- Check password in `backend/.env` matches Neo4j
+- Check the password in `backend/.env` matches your database
+- Confirm the database is listening: `docker compose ps`
+
+**Backend starts but every analysis fails:**
+- `/api/health` reports `"database": "disconnected"`. The API stays up
+  deliberately so the UI can explain the problem; start the database.
 
 **No graph showing:**
-- Run: `cd backend && npm run scan`
-- Click "Refresh" button in browser
+- Analyse a repository from the web interface, then refresh
+- Check `/api/jobs` for a failed job and its error message
+
+**GitHub analysis fails:**
+- Private repositories need a `GITHUB_TOKEN` in `backend/.env`
+- Verify Git is installed on your system
+- Check backend logs for detailed errors
 
 **Port conflicts:**
 - Change `PORT` in `backend/.env`
 - Update proxy in `frontend/vite.config.ts`
 
+## Deployment
+
+### Deploy to Railway (Recommended)
+
+Railway provides the best platform for this application with support for long-running processes, Neo4j, and Git operations.
+
+**Quick Deploy:**
+```bash
+# Install Railway CLI
+npm install -g @railway/cli
+
+# Login
+railway login
+
+# Deploy backend
+cd backend
+railway init
+railway up
+
+# Get your backend URL
+railway domain
+```
+
+**Detailed deployment guide:** See [RAILWAY_DEPLOYMENT.md](./RAILWAY_DEPLOYMENT.md)
+
+**What you'll need:**
+- Railway account (free tier available)
+- Neo4j database (use Railway's Neo4j plugin or Neo4j AuraDB)
+- Environment variables configured
+
+**Deploy Frontend to Vercel:**
+```bash
+cd frontend
+vercel --prod
+# Set VITE_API_BASE_URL to your Railway backend URL
+```
+
 ## Technology Stack
 
-**Backend:** Node.js, TypeScript, Fastify, Babel Parser, Neo4j  
-**Frontend:** React, TypeScript, Vite, React Flow, Tailwind CSS  
+**Backend:** Node.js 20, TypeScript, Fastify 5, Babel Parser, tree-sitter (WASM), Neo4j driver
+**Frontend:** React 18, TypeScript, Vite, React Flow, Tailwind CSS
 **Database:** Neo4j 5.x
+**Testing:** Vitest with a recording fake Neo4j driver
+**Tooling:** ESLint, Prettier, Dependabot, Docker Compose
 
 ## Use Cases
 
@@ -175,6 +310,11 @@ See [DEMO_DEPLOYMENT.md](./DEMO_DEPLOYMENT.md) for deploying to GitHub Pages, Ne
 ## License
 
 MIT
+
+## Contributing
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for the test and commit conventions.
+Notable changes are recorded in [CHANGELOG.md](./CHANGELOG.md).
 
 ---
 
