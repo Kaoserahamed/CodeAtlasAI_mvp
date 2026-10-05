@@ -67,3 +67,25 @@ jobs:
       # weekly upgrade PRs, and `npm audit` prints the full report locally.
       - name: Audit runtime dependencies
         run: npm audit --omit=dev --audit-level=high
+
+  integration:
+    name: Neo4j integration tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Starts the compose-managed Neo4j, waits for it to answer, runs the
+      # suite with TEST_NEO4J=true and tears the database down again. The
+      # two skipped tests in `npm test` are the ones this executes.
+      - name: Run integration tests against compose Neo4j
+        run: npm run test:ci --workspace=backend

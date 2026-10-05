@@ -11,6 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:integration": "vitest run tests/database",
+    "test:ci": "node scripts/testWithNeo4j.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "eslint src tests --ext ts --report-unused-disable-directives --max-warnings 0",
     "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",

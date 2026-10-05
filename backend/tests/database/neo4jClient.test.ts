@@ -51,6 +51,16 @@ beforeAll(async () => {
   liveAvailable = await probe.testConnection();
   if (liveAvailable) await probe.ensureSchema();
   await probe.close();
+
+  // Asking for the integration suite and not getting it is a failure, not a
+  // silent pass. Without this the run reports green having executed none of
+  // the tests below, which is how a broken database goes unnoticed in CI.
+  if (!liveAvailable && process.env.TEST_NEO4J === 'true') {
+    throw new Error(
+      'TEST_NEO4J=true but no Neo4j is reachable. Start one with `docker compose up -d` ' +
+        'from the repository root, or unset TEST_NEO4J to skip these tests.'
+    );
+  }
 });
 
 describe('Neo4jClient query construction', () => {
