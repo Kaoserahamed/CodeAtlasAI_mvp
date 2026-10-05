@@ -21,6 +21,16 @@ function parseOrigins(raw?: string): string[] | false {
 }
 
 export const config = {
+  /**
+   * Service version, reported by /api/health.
+   *
+   * Kept here so the API and the package manifests cannot drift. The build does
+   * not read package.json directly because it sits outside the TypeScript
+   * rootDir, and importing it would place a JSON file inside the compiled
+   * output. A test asserts the two agree.
+   */
+  version: '1.0.0',
+
   // Server
   port: parseInt(process.env.PORT || '3001', 10),
   nodeEnv: process.env.NODE_ENV || 'development',

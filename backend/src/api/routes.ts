@@ -60,7 +60,7 @@ export async function registerRoutes(fastify: FastifyInstance) {
     status: 'ok',
     database: (await db.testConnection()) ? 'connected' : 'disconnected',
     languages: registry.languages,
-    version: '2.0.0',
+    version: config.version,
     timestamp: new Date().toISOString(),
   }));
 

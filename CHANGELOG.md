@@ -68,6 +68,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The service reported two different versions.** `/api/health` returned a
+  hardcoded `2.0.0` while every package manifest said `1.0.0`, so a bug report
+  quoting either one was ambiguous. The version now lives in the config module
+  and a test asserts it matches all three manifests.
 - **A supported variable was undocumented.** `GH_TOKEN` is read in
   `githubService` and `routes` as an alternative to `GITHUB_TOKEN`, but was
   absent from `backend/.env.example`, so anyone setting it from the example
