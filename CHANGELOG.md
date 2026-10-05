@@ -30,6 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A devcontainer (`Reopen in Container`) pinning Node 20, installing from the
+  lockfile and starting the Compose database on open, so a fresh clone needs
+  no setup decisions. The manual path is still documented for anyone not using
+  an editor.
 - A coverage gate. Each workspace records a floor in its vitest config —
   backend 80% statements / 65% branches, frontend 85% / 80% — measured against
   what the suite actually reaches today (86.4% and 91.6%) and sitting below it,

@@ -1,0 +1,49 @@
+{
+  // Opening this repository in a devcontainer gives a working environment with
+  // no setup decisions left to make: Node 20 is pinned, dependencies install
+  // from the committed lockfile, and the Neo4j database the tests and the app
+  // need is already running by the time the terminal opens.
+  //
+  // Without this, a fresh clone needs four separate steps that a new
+  // contributor has to guess at: install Node, install packages, start a
+  // database, and find the right credentials.
+  "name": "CodeAtlas AI",
+
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:1-20-bookworm",
+
+  // Docker is needed inside the container for the Neo4j compose service, and
+  // git is needed because the analyser clones repositories at runtime.
+  "runArgs": ["--init"],
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+
+  "postCreateCommand": "npm ci && docker compose up -d && cp -n backend/.env.example backend/.env || true",
+
+  "forwardPorts": [3001, 5173, 7474, 7687],
+  "portsAttributes": {
+    "3001": { "label": "API" },
+    "5173": { "label": "Frontend (Vite)" },
+    "7474": { "label": "Neo4j browser" },
+    "7687": { "label": "Neo4j bolt" }
+  },
+
+  // The database and the built output are machine-specific and regenerable,
+  // and the working tree starts clean so a stray file does not hide a real
+  // diff.
+  "remoteUser": "node",
+  "updateRemoteUserUID": true,
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "bradlc.vscode-tailwindcss"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+      }
+    }
+  }
+}

@@ -25,7 +25,18 @@ Try the deployed application - analyze any public GitHub repository and visualiz
 
 ## Quick Start
 
-### Prerequisites
+### 0. Open in a devcontainer (no setup steps)
+
+In VS Code, choose **Reopen in Container**. That gives you Node 20,
+dependencies installed from the committed lockfile, and the Neo4j database
+already running, with the four ports forwarded. The only command left is
+`npm run dev`.
+
+The configuration lives in `.devcontainer/devcontainer.json`.
+
+### 1. Or set it up by hand
+
+You need:
 
 - **Node.js 20+**
 - **Docker** — only for the local database. Not required if you already have
@@ -33,7 +44,7 @@ Try the deployed application - analyze any public GitHub repository and visualiz
   state through `/api/health` rather than crash-looping.
 - **Git** — for cloning repositories.
 
-### 1. Start a database
+### 2. Start a database
 
 ```bash
 docker compose up -d
@@ -45,7 +56,7 @@ with `docker compose down -v`.
 
 Already have Neo4j? Skip this and put its URI in `backend/.env`.
 
-### 2. Configure the backend
+### 3. Configure the backend
 
 ```bash
 cp backend/.env.example backend/.env
@@ -60,7 +71,7 @@ NEO4J_PASSWORD=codeatlas-local
 PORT=3001
 ```
 
-### 3. Install & Run
+### 4. Install & Run
 
 ```bash
 npm install   # installs both workspaces
@@ -71,7 +82,7 @@ Servers will start:
 - Frontend: http://localhost:5173
 - Backend: http://localhost:3001
 
-### 4. Analyze a repository
+### 5. Analyze a repository
 
 Open http://localhost:5173, enter a GitHub repository URL, and click
 **Analyze Repository**. Analysis runs in the background, so you can watch the
@@ -81,7 +92,7 @@ Supported languages: JavaScript, TypeScript, Python, Go, Java, Ruby, Rust and
 C#. Public repositories need no configuration; private ones need a
 `GITHUB_TOKEN`.
 
-### 5. Verify the install
+### 6. Verify the install
 
 ```bash
 npm test          # 196 tests across both workspaces
