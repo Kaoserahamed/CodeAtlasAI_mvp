@@ -1,0 +1,57 @@
+# https://docs.github.com/code-security/dependabot/dependabot-version-updates
+version: 2
+
+updates:
+  # Root manifest holds the workspace definitions and the root devDependency.
+  - package-ecosystem: npm
+    directory: '/'
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+    # Group the routine patch and minor bumps so a week of updates arrives as
+    # one reviewable PR instead of a dozen.
+    groups:
+      dev-dependencies:
+        dependency-type: development
+        update-types:
+          - patch
+          - minor
+
+  # Backend runtime dependencies: Fastify, the Neo4j driver, the parsers.
+  # These are left ungrouped because each needs individual review.
+  - package-ecosystem: npm
+    directory: '/backend'
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+    groups:
+      backend-runtime-patches:
+        update-types:
+          - patch
+
+  # Frontend: React, React Flow, Vite, Tailwind.
+  - package-ecosystem: npm
+    directory: '/frontend'
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+    groups:
+      frontend-dev-patches:
+        dependency-type: development
+        update-types:
+          - patch
+
+  # GitHub Actions workflow pinning, so a compromised action version is caught.
+  - package-ecosystem: github-actions
+    directory: '/'
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+      - ci
