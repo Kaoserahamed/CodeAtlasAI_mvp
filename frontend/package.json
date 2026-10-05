@@ -2,19 +2,22 @@
   "name": "codeatlas-frontend",
   "version": "1.0.0",
   "type": "module",
+  "homepage": "https://kaoserahamed.github.io/CodeAtlasAI_mvp",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "build:demo": "tsc && vite build --config vite.config.demo.ts --mode production",
     "preview": "vite preview",
     "preview:demo": "vite preview --config vite.config.demo.ts",
-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
+    "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist"
   },
   "dependencies": {
+    "lucide-react": "^0.294.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "reactflow": "^11.10.4",
-    "lucide-react": "^0.294.0"
+    "reactflow": "^11.10.4"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",
@@ -26,6 +29,7 @@
     "eslint": "^8.55.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.5",
+    "gh-pages": "^6.3.0",
     "postcss": "^8.4.32",
     "tailwindcss": "^3.3.6",
     "typescript": "^5.2.2",

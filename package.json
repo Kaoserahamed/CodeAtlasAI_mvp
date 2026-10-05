@@ -19,6 +19,9 @@
     "test:watch": "npm run test:watch --workspace=backend",
     "test:coverage": "npm run test:coverage --workspace=backend",
     "typecheck": "npm run typecheck --workspace=backend && tsc --noEmit -p frontend/tsconfig.json",
+    "lint": "npm run lint --workspace=backend && npm run lint --workspace=frontend",
+    "format": "prettier --write \"backend/src/**/*.ts\" \"backend/tests/**/*.ts\" \"frontend/src/**/*.{ts,tsx}\"",
+    "format:check": "prettier --check \"backend/src/**/*.ts\" \"backend/tests/**/*.ts\" \"frontend/src/**/*.{ts,tsx}\"",
     "deploy:vercel": "cd frontend && vercel --prod",
     "deploy:railway": "cd backend && railway up"
   },
