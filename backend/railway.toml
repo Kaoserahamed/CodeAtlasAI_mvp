@@ -1,0 +1,10 @@
+[build]
+builder = "NIXPACKS"
+buildCommand = "apt-get update && apt-get install -y git && npm install && npm run build"
+
+[deploy]
+startCommand = "node dist/server.js"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+healthcheckPath = "/api/health"
+healthcheckTimeout = 100
