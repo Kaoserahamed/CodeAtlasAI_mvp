@@ -49,6 +49,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A fresh clone could not run the test suite.** `tree-sitter-wasms`, which
+  supplies the WASM grammars the multi-language parsers load at runtime, was in
+  no package.json and had no entry in the lockfile. It existed only in a local
+  `node_modules`, so `npm ci` never installed it, the grammar directory lookup
+  threw, and the suite failed to collect for anyone not working on the original
+  machine. It is now a declared backend dependency.
+- **The multi-language tests passed while asserting nothing.** Each began with
+  `if (!available) return`, so with the grammars missing four Python, Go and
+  Java parsing tests reported success having executed no assertions. They now
+  assert the runtime is available, so the absence fails loudly.
 - **The integration suite reported a false pass.** Each integration test
   began with `if (!liveAvailable) return`, so running with `TEST_NEO4J=true`
   and no database reachable reported ten passing tests having run none of

@@ -42,7 +42,7 @@ describe('tree-sitter runtime', () => {
   });
 
   it('parses python functions, classes and imports', async () => {
-    if (!available) return;
+    expect(available).toBe(true);
     const file = await registry.get('.py')!.parse({
       repoId: 'r1',
       path: 'app/auth.py',
@@ -66,7 +66,7 @@ def logout(user):
   });
 
   it('attributes calls to the enclosing python function', async () => {
-    if (!available) return;
+    expect(available).toBe(true);
     const file = await registry.get('.py')!.parse({
       repoId: 'r1',
       path: 'app/svc.py',
@@ -88,7 +88,7 @@ def beta():
   });
 
   it('parses go functions', async () => {
-    if (!available) return;
+    expect(available).toBe(true);
     const file = await registry.get('.go')!.parse({
       repoId: 'r1',
       path: 'cmd/server.go',
@@ -109,7 +109,7 @@ func handleRequest(id string) error {
   });
 
   it('parses java classes and methods', async () => {
-    if (!available) return;
+    expect(available).toBe(true);
     const file = await registry.get('.java')!.parse({
       repoId: 'r1',
       path: 'com/example/Service.java',
@@ -131,7 +131,7 @@ public class Service {
   });
 
   it('returns an error result rather than throwing when content is empty', async () => {
-    if (!available) return;
+    expect(available).toBe(true);
     const file = await registry.get('.py')!.parse({
       repoId: 'r1',
       path: 'empty.py',
