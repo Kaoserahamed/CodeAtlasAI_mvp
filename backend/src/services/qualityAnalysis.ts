@@ -137,14 +137,12 @@ export function analyzeQuality(
 
   let maxComplexity = 0;
   let longestLines = 0;
-  let totalComplexity = 0;
 
   for (const fn of functions) {
     const complexity = fn.complexity ?? 1;
     const lines =
       fn.startLine && fn.endLine ? Math.max(1, fn.endLine - fn.startLine + 1) : 0;
 
-    totalComplexity += complexity;
     maxComplexity = Math.max(maxComplexity, complexity);
     longestLines = Math.max(longestLines, lines);
 

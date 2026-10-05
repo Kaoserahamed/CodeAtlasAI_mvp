@@ -45,3 +45,21 @@ export interface ApiResponse<T> {
   data?: T;
   error?: string;
 }
+
+/** Analyze response: the job id is returned at the top level, not inside `data`. */
+export interface AnalyzeResponse {
+  success: boolean;
+  jobId: string;
+  repoId: string;
+  message: string;
+  error?: string;
+}
+
+/** Shape returned by GET /api/health. */
+export interface HealthResponse {
+  status: string;
+  database: 'connected' | 'disconnected';
+  languages: string[];
+  version: string;
+  timestamp: string;
+}

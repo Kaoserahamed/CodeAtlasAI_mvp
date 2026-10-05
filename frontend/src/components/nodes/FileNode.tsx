@@ -8,6 +8,7 @@ import { File } from 'lucide-react';
 
 interface FileNodeProps {
   data: {
+    id?: string;
     label?: string;
     name?: string;
     extension?: string;
@@ -22,7 +23,7 @@ export const FileNode = memo(({ data }: FileNodeProps) => {
   let fullPath = '';
   
   // Try to get the id from data
-  const id = (data as any).id || data.path || data.label || '';
+  const id = data.id || data.path || data.label || '';
   fullPath = id;
   
   if (data.name) {

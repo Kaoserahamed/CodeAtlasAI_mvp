@@ -10,6 +10,7 @@
  * owner/repo segments are restricted to characters GitHub actually permits.
  */
 import { URL } from 'url';
+import path from 'path';
 
 export interface RepoRef {
   owner: string;
@@ -138,9 +139,9 @@ export function repoIdFor(ref: RepoRef): string {
  * Returns the resolved absolute path, or throws if it escapes the root.
  */
 export function resolveWithinRoot(root: string, requested: string): string {
-  const resolvedRoot = require('path').resolve(root);
-  const target = require('path').resolve(resolvedRoot, requested);
-  if (target !== resolvedRoot && !target.startsWith(resolvedRoot + require('path').sep)) {
+  const resolvedRoot = path.resolve(root);
+  const target = path.resolve(resolvedRoot, requested);
+  if (target !== resolvedRoot && !target.startsWith(resolvedRoot + path.sep)) {
     throw new InvalidRepoUrlError('Path escapes the allowed root directory');
   }
   return target;

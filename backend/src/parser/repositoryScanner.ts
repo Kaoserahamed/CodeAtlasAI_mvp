@@ -154,8 +154,11 @@ export class RepositoryScanner {
           } else {
             files.push(parsed);
           }
-        } catch (err: any) {
-          errors.push({ path: relPath, error: err?.message || 'read failed' });
+        } catch (err: unknown) {
+          errors.push({
+            path: relPath,
+            error: err instanceof Error ? err.message : 'read failed',
+          });
         } finally {
           done++;
           options.onProgress?.(done, targets.length, relPath);

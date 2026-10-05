@@ -105,8 +105,8 @@ export class GitHubService {
       const commitSha = (await git.revparse(['HEAD'])).trim();
 
       return { success: true, localPath, commitSha };
-    } catch (err: any) {
-      const message = err?.message ?? String(err);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
       let friendly = 'Failed to clone repository';
 
       if (/could not read Username|Authentication failed|terminal prompts disabled/i.test(message)) {

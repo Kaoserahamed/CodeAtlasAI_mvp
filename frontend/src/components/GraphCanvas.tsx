@@ -49,13 +49,11 @@ export function GraphCanvas({ graphData, onNodeClick, selectedNodeId }: GraphCan
         data: {
           ...node.data,
           label: node.label,
-          // Ensure we pass the correct path based on node type
-          path: node.type === 'file' 
-            ? (node.data as any).path 
-            : (node.data as any).filePath,
-          name: node.type === 'file'
-            ? (node.data as any).name
-            : (node.data as any).name,
+          // Ensure we pass the correct path based on node type. Both node kinds
+          // carry a name, but only files have `path` and only functions
+          // have `filePath`, so narrow on the field itself.
+          path: 'path' in node.data ? node.data.path : node.data.filePath,
+          name: node.data.name,
         },
         position: {
           // Simple grid layout - you can enhance this with a proper layout algorithm

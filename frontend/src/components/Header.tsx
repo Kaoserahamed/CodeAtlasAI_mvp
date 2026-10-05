@@ -2,18 +2,20 @@
  * Header Component
  */
 
-import { Network, RefreshCw } from 'lucide-react';
+import { Network, RefreshCw, Plus } from 'lucide-react';
 
 interface HeaderProps {
   onRefresh: () => void;
+  onNewAnalysis?: () => void;
   isLoading: boolean;
   stats?: {
     nodes: number;
     edges: number;
   };
+  repositoryName?: string;
 }
 
-export function Header({ onRefresh, isLoading, stats }: HeaderProps) {
+export function Header({ onRefresh, onNewAnalysis, isLoading, stats, repositoryName }: HeaderProps) {
   return (
     <header className="bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
       <div className="flex items-center justify-between">
@@ -30,7 +32,9 @@ export function Header({ onRefresh, isLoading, stats }: HeaderProps) {
                 </span>
               )}
             </h1>
-            <p className="text-sm text-gray-500">Codebase Knowledge Graph</p>
+            <p className="text-sm text-gray-500">
+              {repositoryName || 'Codebase Knowledge Graph'}
+            </p>
           </div>
         </div>
 
@@ -46,6 +50,17 @@ export function Header({ onRefresh, isLoading, stats }: HeaderProps) {
             </div>
           )}
           
+          {onNewAnalysis && (
+            <button
+              onClick={onNewAnalysis}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+              aria-label="Analyze new repository"
+            >
+              <Plus size={16} />
+              New Analysis
+            </button>
+          )}
+
           <button
             onClick={onRefresh}
             disabled={isLoading}

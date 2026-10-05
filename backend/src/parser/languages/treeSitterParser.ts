@@ -5,7 +5,7 @@
  * methods, classes, imports) so adding a language is a data change rather
  * than new traversal code.
  */
-import { ParsedFile, RawCall, RawImport } from '../../types';
+import { ParsedFile, RawImport } from '../../types';
 import {
   LanguageParser,
   ParseContext,
@@ -249,14 +249,12 @@ export class TreeSitterParser implements LanguageParser {
     const bindings: RawImport['bindings'] = [];
     let specifier: string | undefined;
     let isNamespace = false;
-    let isRelative = false;
 
     const scan = (current: any): void => {
       if (current.type === 'string' || current.type === 'interpreted_string_literal') {
         specifier = textOf(current, content).replace(/^['"]|['"]$/g, '');
       }
       if (current.type === 'wildcard' || current.type === 'asterisk') isNamespace = true;
-      if (current.type?.includes('relative')) isRelative = true;
 
       // Named imports carry identifiers that are not the module path.
       if (
@@ -296,7 +294,6 @@ export class TreeSitterParser implements LanguageParser {
     let seenModule = false;
     const bindings: RawImport['bindings'] = [];
     let namespaceBinding: string | undefined;
-    let isNamespace = false;
 
     for (const child of children) {
       const type = child.type;
@@ -325,7 +322,6 @@ export class TreeSitterParser implements LanguageParser {
       }
 
       if (type === 'wildcard') {
-        isNamespace = true;
         namespaceBinding = '*';
       }
     }

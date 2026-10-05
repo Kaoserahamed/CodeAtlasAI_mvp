@@ -183,14 +183,15 @@ export class JobService {
       job.message = 'Analysis complete';
       job.finishedAt = Date.now();
       this.emit(job);
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (entry.cancelled) {
         this.markFinished(entry, 'cancelled', 'Cancelled');
         return;
       }
+      const detail = err instanceof Error ? err.message : String(err);
       job.status = 'failed';
       job.message = 'Analysis failed';
-      job.error = err?.message?.slice(0, 500) || 'Unknown error';
+      job.error = detail.slice(0, 500) || 'Unknown error';
       job.finishedAt = Date.now();
       this.emit(job);
     } finally {

@@ -14,6 +14,8 @@
  * lockfile or a minified bundle.
  */
 
+import crypto from 'crypto';
+
 export type SecretKind =
   | 'aws-access-key'
   | 'github-token'
@@ -191,7 +193,6 @@ export function redact(
 }
 
 function sha256(value: string): string {
-  const crypto = require('crypto') as typeof import('crypto');
   return crypto.createHash('sha256').update(value).digest('hex');
 }
 

@@ -6,43 +6,142 @@ import { useState, useEffect, useCallback } from 'react';
 import { GraphCanvas } from './components/GraphCanvas';
 import { DetailsPanel } from './components/DetailsPanel';
 import { Header } from './components/Header';
-import { api } from './services/api';
+import { LandingPage } from './components/LandingPage';
+import { ProcessingStatus, ProcessingStep } from './components/ProcessingStatus';
+import { defaultProcessingSteps } from './processingSteps';
+import { api, Job } from './services/api';
 import { GraphData, GraphNode } from './types';
 import { AlertCircle } from 'lucide-react';
 import { isDemoMode, demoGraphData } from './demo-data';
 
+type AppView = 'landing' | 'processing' | 'graph';
+
 function App() {
+  const [currentView, setCurrentView] = useState<AppView>('landing');
   const [graphData, setGraphData] = useState<GraphData | null>(null);
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [repositoryUrl, setRepositoryUrl] = useState<string>('');
+  const [processingSteps, setProcessingSteps] = useState<ProcessingStep[]>(defaultProcessingSteps);
 
-  // Load graph data
-  const loadGraph = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    
+  // Check if graph data exists on mount
+  useEffect(() => {
+    checkExistingGraph();
+  }, []);
+
+  /**
+   * Check if there's existing graph data
+   */
+  const checkExistingGraph = async () => {
+    if (isDemoMode) {
+      setGraphData(demoGraphData as GraphData);
+      setCurrentView('graph');
+      return;
+    }
+
     try {
-      if (isDemoMode) {
-        // Load demo data
-        setGraphData(demoGraphData as GraphData);
-      } else {
-        // Load from API
-        const data = await api.fetchGraph();
+      const data = await api.fetchGraph();
+      if (data && data.nodes.length > 0) {
         setGraphData(data);
+        setCurrentView('graph');
+      } else {
+        setCurrentView('landing');
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to load graph data');
-      console.error('Error loading graph:', err);
+    } catch (err) {
+      // No existing data, show landing page
+      setCurrentView('landing');
+    }
+  };
+
+  /**
+   * Handle repository submission from landing page
+   */
+  const handleRepositorySubmit = async (repoUrl: string) => {
+    setRepositoryUrl(repoUrl);
+    setError(null);
+    setIsLoading(true);
+    setCurrentView('processing');
+    
+    // Reset processing steps
+    setProcessingSteps(defaultProcessingSteps.map(step => ({ ...step })));
+
+    try {
+      // Start analysis
+      const { jobId } = await api.analyzeGitHubRepository(repoUrl);
+
+      // Poll for status updates
+      await api.pollJobStatus(jobId, (job: Job) => {
+        updateProcessingSteps(job);
+      });
+
+      // Load the graph data
+      const data = await api.fetchGraph();
+      setGraphData(data);
+      setCurrentView('graph');
+    } catch (err) {
+      console.error('Analysis error:', err);
+      const message = err instanceof Error ? err.message : 'Failed to analyze repository';
+      setError(message);
+      updateProcessingSteps({ status: 'failed', message } as Job);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  };
 
-  // Load data on mount
-  useEffect(() => {
-    loadGraph();
-  }, [loadGraph]);
+  /**
+   * Update processing steps based on job status
+   */
+  const updateProcessingSteps = (job: Job) => {
+    setProcessingSteps((prevSteps) => {
+      const newSteps = prevSteps.map(step => ({ ...step }));
+
+      // Reset all to pending first if starting
+      if (job.status === 'pending') {
+        return newSteps.map(s => ({ ...s, status: 'pending' as const }));
+      }
+
+      // Update based on current status
+      switch (job.status) {
+        case 'cloning':
+          newSteps[0].status = 'active';
+          newSteps[0].message = job.message;
+          break;
+        case 'analyzing':
+          newSteps[0].status = 'completed';
+          newSteps[1].status = 'active';
+          newSteps[1].message = job.message;
+          break;
+        case 'storing':
+          newSteps[0].status = 'completed';
+          newSteps[1].status = 'completed';
+          newSteps[2].status = 'active';
+          newSteps[2].message = job.message;
+          break;
+        case 'completed':
+          newSteps[0].status = 'completed';
+          newSteps[1].status = 'completed';
+          newSteps[2].status = 'completed';
+          newSteps[3].status = 'completed';
+          if (job.stats) {
+            newSteps[3].message = `Found ${job.stats.files} files and ${job.stats.functions} functions`;
+          }
+          break;
+        case 'failed': {
+          // Mark current step as error. The block scopes `activeIndex`, which
+          // would otherwise leak into the enclosing switch.
+          const activeIndex = newSteps.findIndex(s => s.status === 'active');
+          if (activeIndex !== -1) {
+            newSteps[activeIndex].status = 'error';
+            newSteps[activeIndex].message = job.error || 'An error occurred';
+          }
+          break;
+        }
+      }
+
+      return newSteps;
+    });
+  };
 
   // Handle node click
   const handleNodeClick = useCallback((node: GraphNode) => {
@@ -54,16 +153,71 @@ function App() {
     setSelectedNode(null);
   }, []);
 
+  /**
+   * Handle refresh - reload graph data
+   */
+  const handleRefresh = async () => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const data = await api.fetchGraph();
+      setGraphData(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load graph data');
+      console.error('Error loading graph:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /**
+   * Handle new analysis
+   */
+  const handleNewAnalysis = () => {
+    setCurrentView('landing');
+    setGraphData(null);
+    setSelectedNode(null);
+    setError(null);
+    setRepositoryUrl('');
+  };
+
+  // Render based on current view
+  if (currentView === 'landing') {
+    return (
+      <LandingPage 
+        onSubmit={handleRepositorySubmit} 
+        isLoading={isLoading}
+      />
+    );
+  }
+
+  if (currentView === 'processing') {
+    return (
+      <ProcessingStatus
+        steps={processingSteps}
+        repositoryUrl={repositoryUrl}
+        error={error || undefined}
+        onComplete={() => {
+          // This will be called after a delay when all steps are completed
+        }}
+      />
+    );
+  }
+
+  // Graph view
   return (
     <div className="h-screen flex flex-col bg-gray-50">
       <Header
-        onRefresh={loadGraph}
+        onRefresh={handleRefresh}
+        onNewAnalysis={handleNewAnalysis}
         isLoading={isLoading}
         stats={
           graphData
             ? { nodes: graphData.nodes.length, edges: graphData.edges.length }
             : undefined
         }
+        repositoryName={repositoryUrl ? repositoryUrl.split('/').slice(-2).join('/') : undefined}
       />
 
       <div className="flex-1 flex overflow-hidden">
@@ -87,19 +241,11 @@ function App() {
                 </h3>
                 <p className="text-gray-600 mb-4">{error}</p>
                 <button
-                  onClick={loadGraph}
+                  onClick={handleRefresh}
                   className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
                 >
                   Try Again
                 </button>
-                <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-left text-sm text-gray-700">
-                  <p className="font-semibold mb-2">Make sure:</p>
-                  <ul className="list-disc list-inside space-y-1">
-                    <li>Backend server is running on port 3001</li>
-                    <li>Neo4j database is running and accessible</li>
-                    <li>You've scanned a repository using: <code className="bg-yellow-100 px-1 rounded">npm run scan</code></li>
-                  </ul>
-                </div>
               </div>
             </div>
           )}
@@ -108,14 +254,12 @@ function App() {
             <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
               <div className="text-center max-w-md mx-auto p-6">
                 <p className="text-gray-600 mb-4">No graph data available</p>
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg text-left text-sm text-gray-700">
-                  <p className="font-semibold mb-2">To get started:</p>
-                  <ol className="list-decimal list-inside space-y-1">
-                    <li>Open a terminal in the <code className="bg-blue-100 px-1 rounded">backend</code> directory</li>
-                    <li>Run: <code className="bg-blue-100 px-1 rounded">npm run scan -- /path/to/your/repo</code></li>
-                    <li>Click the Refresh button</li>
-                  </ol>
-                </div>
+                <button
+                  onClick={handleNewAnalysis}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
+                >
+                  Analyze Repository
+                </button>
               </div>
             </div>
           )}
