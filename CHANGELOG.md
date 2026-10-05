@@ -30,6 +30,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A coverage gate. Each workspace records a floor in its vitest config —
+  backend 80% statements / 65% branches, frontend 85% / 80% — measured against
+  what the suite actually reaches today (86.4% and 91.6%) and sitting below it,
+  so CI fails when coverage falls rather than rewarding a plateau. Raising a
+  floor is a deliberate act.
 - A frontend test setup: Vitest with jsdom, Testing Library, and 30 specs
   covering the API client's request shaping and error envelope, the processing
   screen, and the graph canvas's data transformation. The frontend previously

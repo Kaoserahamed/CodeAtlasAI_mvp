@@ -22,5 +22,20 @@ export default defineConfig({
     // the tests give it a fixed box rather than depending on a real one.
     globals: true,
     testTimeout: 15000,
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov'],
+      // Measured 2026-10: 91.6% statements, 88.1% branches. The floor sits just
+      // below, so the gate catches a regression rather than rewarding a
+      // plateau.
+      thresholds: {
+        statements: 85,
+        branches: 80,
+        functions: 85,
+        lines: 88,
+      },
+      // main.tsx mounts the app into a DOM node and has nothing to assert.
+      exclude: ['src/main.tsx', 'src/vite-env.d.ts'],
+    },
   },
 });

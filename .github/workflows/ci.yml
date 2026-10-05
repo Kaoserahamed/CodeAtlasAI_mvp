@@ -34,6 +34,12 @@ jobs:
       - name: Test
         run: npm test
 
+      - name: Test with coverage threshold
+        # The same suite, but failing the build when coverage drops below the
+        # floor recorded in each workspace's vitest config. A threshold that is
+        # only ever reported is not a gate.
+        run: npm run test:coverage
+
       - name: Typecheck
         run: npm run typecheck
 
