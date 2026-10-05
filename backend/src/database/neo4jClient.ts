@@ -12,12 +12,11 @@
  *  - Idempotent, incremental updates. Nodes are MERGEd by their deterministic
  *    id, and a refresh removes only the subgraph of the files that changed.
  */
-import neo4j, { Driver, Session, Integer } from 'neo4j-driver';
+import neo4j, { Driver, Integer } from 'neo4j-driver';
 import { config } from '../config';
 import { GraphEdge, GraphNodeBase, PARSER_VERSION } from '../types';
 import { ResolvedGraph } from '../resolver/symbolResolver';
-
-const WRITE_BATCH = 500;
+import { chunk, deleteFilesInBatches, writeEdges, writeNodes } from './neo4jWriter';
 
 export interface GraphQueryOptions {
   repoId: string;
@@ -96,15 +95,6 @@ export class Neo4jClient {
     return this.ready;
   }
 
-  /** Split an array into fixed-size chunks for UNWIND batches. */
-  private static chunk<T>(items: T[], size = WRITE_BATCH): T[][] {
-    const out: T[][] = [];
-    for (let i = 0; i < items.length; i += size) {
-      out.push(items.slice(i, i + size));
-    }
-    return out;
-  }
-
   /**
    * Persist a resolved graph.
    *
@@ -121,105 +111,13 @@ export class Neo4jClient {
     const session = this.driver.session();
     try {
       if (replacePaths?.length) {
-        await this.deleteFilesInBatches(session, repoId, replacePaths);
+        await deleteFilesInBatches(session, repoId, replacePaths);
       }
 
-      await this.writeNodes(session, graph.nodes, repoId);
-      await this.writeEdges(session, graph.edges, repoId);
+      await writeNodes(session, graph.nodes, repoId);
+      await writeEdges(session, graph.edges, repoId);
     } finally {
       await session.close();
-    }
-  }
-
-  private async deleteFilesInBatches(
-    session: Session,
-    repoId: string,
-    paths: string[]
-  ): Promise<void> {
-    for (const batch of Neo4jClient.chunk(paths)) {
-      await session.run(
-        `MATCH (n:CodeNode {repoId: $repoId})
-         WHERE n.path IN $paths
-         DETACH DELETE n`,
-        { repoId, paths: batch }
-      );
-    }
-  }
-
-  private async writeNodes(
-    session: Session,
-    nodes: GraphNodeBase[],
-    repoId: string
-  ): Promise<void> {
-    const rows = nodes.map((n) => ({
-      id: n.id,
-      kind: n.kind,
-      name: n.name,
-      path: n.path ?? null,
-      language: n.language ?? null,
-      qualifiedName: n.qualifiedName ?? null,
-      parameters: n.parameters ?? null,
-      startLine: n.startLine ?? null,
-      endLine: n.endLine ?? null,
-      complexity: n.complexity ?? null,
-      isExported: n.isExported ?? null,
-      isTest: n.isTest ?? null,
-      modulePath: n.modulePath ?? null,
-    }));
-
-    for (const batch of Neo4jClient.chunk(rows)) {
-      await session.run(
-        `UNWIND $rows AS row
-         MERGE (n:CodeNode {repoId: $repoId, id: row.id})
-         SET n.kind = row.kind,
-             n.name = row.name,
-             n.path = row.path,
-             n.language = row.language,
-             n.qualifiedName = row.qualifiedName,
-             n.parameters = row.parameters,
-             n.startLine = row.startLine,
-             n.endLine = row.endLine,
-             n.complexity = row.complexity,
-             n.isExported = row.isExported,
-             n.isTest = row.isTest,
-             n.modulePath = row.modulePath,
-             n.updatedAt = timestamp()`,
-        { repoId, rows: batch }
-      );
-    }
-  }
-
-  /**
-   * Edges are MERGEd on the node pair and their kind, so re-running a scan
-   * updates the relationship metadata instead of duplicating relationships.
-   */
-  private async writeEdges(
-    session: Session,
-    edges: GraphEdge[],
-    repoId: string
-  ): Promise<void> {
-    const rows = edges.map((e) => ({
-      from: e.from,
-      to: e.to,
-      kind: e.kind,
-      resolution: e.meta.resolution,
-      confidence: e.meta.confidence,
-      line: e.meta.line ?? null,
-    }));
-
-    for (const batch of Neo4jClient.chunk(rows)) {
-      // Relationships are typed dynamically, so APOC-free Cypher merges them
-      // under a generic RELATES relationship plus a `kind` property.
-      await session.run(
-        `UNWIND $rows AS row
-         MATCH (a:CodeNode {repoId: $repoId, id: row.from})
-         MATCH (b:CodeNode {repoId: $repoId, id: row.to})
-         MERGE (a)-[r:RELATES {kind: row.kind}]->(b)
-         SET r.resolution = row.resolution,
-             r.confidence = row.confidence,
-             r.line = row.line`,
-        { repoId, rows: batch }
-      );
     }
   }
 
@@ -504,7 +402,7 @@ export class Neo4jClient {
         hash: f.hash,
         size: f.size,
       }));
-      for (const batch of Neo4jClient.chunk(rows)) {
+      for (const batch of chunk(rows)) {
         await session.run(
           `UNWIND $rows AS row
            MERGE (f:FileFingerprint {repoId: $repoId, path: row.path})
