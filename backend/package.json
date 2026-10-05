@@ -20,10 +20,10 @@
     "@babel/parser": "^7.23.6",
     "@babel/traverse": "^7.23.6",
     "@babel/types": "^7.23.6",
-    "@fastify/cors": "^8.4.2",
-    "@fastify/rate-limit": "^7.6.0",
+    "@fastify/cors": "^11.3.0",
+    "@fastify/rate-limit": "^10.3.0",
     "dotenv": "^16.3.1",
-    "fastify": "^4.25.1",
+    "fastify": "^5.12.5",
     "neo4j-driver": "^5.15.0",
     "simple-git": "^3.36.0",
     "web-tree-sitter": "^0.25.10"
