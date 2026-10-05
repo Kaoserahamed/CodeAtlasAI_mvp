@@ -19,6 +19,7 @@ import {
   RepoRef,
 } from '../services/repoUrlValidator';
 import { jobService, JobContext } from '../services/jobService';
+import { metrics } from '../services/metricsService';
 import { ParserRegistry } from '../parser/registry';
 import { config } from '../config';
 
@@ -38,6 +39,22 @@ export async function registerRoutes(fastify: FastifyInstance) {
   const registry = ParserRegistry.default();
   const analysis = new AnalysisService({ db, registry });
 
+  // One subscriber feeds both the structured log and the metrics collector, so
+  // the numbers in /api/metrics and the lines in the log can never disagree.
+  jobService.onUpdate((job) => {
+    metrics.observe(job);
+    fastify.log.info(
+      { jobId: job.id, repoId: job.repoId, status: job.status, stage: job.stage, progress: job.progress },
+      'job updated'
+    );
+    if (job.status === 'failed') {
+      fastify.log.error(
+        { jobId: job.id, repoId: job.repoId, error: job.error },
+        'job failed'
+      );
+    }
+  });
+
   // ---------------------------------------------------------------- health
   fastify.get('/api/health', async () => ({
     status: 'ok',
@@ -46,6 +63,18 @@ export async function registerRoutes(fastify: FastifyInstance) {
     version: '2.0.0',
     timestamp: new Date().toISOString(),
   }));
+
+  /**
+   * Queue depth and run timings.
+   *
+   * Separate from /api/health, which is polled by the container runtime and
+   * should stay cheap and dependency-free. This endpoint is for a human
+   * answering "why is this slow", so it is allowed to be a little heavier.
+   */
+  fastify.get('/api/metrics', async () => {
+    const snapshot = metrics.snapshot();
+    return { success: true, data: snapshot };
+  });
 
   /** What this deployment can actually do, so the UI can adapt. */
   fastify.get('/api/capabilities', async () => ({

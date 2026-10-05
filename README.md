@@ -175,6 +175,7 @@ codeatlas-ai/
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/health` | Health and database status |
+| GET | `/api/metrics` | Queue depth and job run timings |
 | GET | `/api/capabilities` | Languages, extensions and which optional features are enabled |
 | GET | `/api/repositories` | List analysed repositories |
 | POST | `/api/repositories/validate` | Validate a repository URL without cloning |
@@ -190,6 +191,42 @@ codeatlas-ai/
 
 Every request body is validated against a JSON schema before the handler
 runs, and errors return a consistent `{ success: false, error }` envelope.
+
+### Observability
+
+Logs are structured JSON via pino, with a `service` field and a level driven
+by `NODE_ENV` (`info` in development, `warn` otherwise). Every background job
+emits a line carrying `jobId`, `repoId`, `status`, `stage` and `progress`,
+and a failure is logged at error level with the reason.
+
+`/api/metrics` reports queue depth and how long runs actually take, which is
+the question the logs alone answer badly:
+
+```bash
+curl localhost:3001/api/metrics
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "uptimeSeconds": 3600,
+    "jobs": {
+      "running": 0,
+      "queued": 2,
+      "byStatus": { "queued": 2, "running": 0, "completed": 41, "failed": 1, "cancelled": 0 },
+      "total": 44,
+      "finished": 42,
+      "lastDurationMs": 8421,
+      "averageDurationMs": 6120,
+      "maxDurationMs": 21033
+    },
+    "timestamp": "..."
+  }
+}
+```
+
+Counters are cumulative since process start and reset on restart.
 
 ## Commands
 

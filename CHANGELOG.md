@@ -34,6 +34,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   covering the API client's request shaping and error envelope, the processing
   screen, and the graph canvas's data transformation. The frontend previously
   had no test runner and no specs at all.
+- **Structured logging and a metrics endpoint.** `pino` was relied on only
+  transitively through Fastify and never declared. It is now a declared
+  dependency with a `service` field and a level driven by `NODE_ENV`, and
+  every background job emits a line with `jobId`, `repoId`, `status`, `stage`
+  and `progress`.
+- `GET /api/metrics` reports queue depth and job run timings: counts by state,
+  the last duration, the average and the slowest observed. Counters are
+  cumulative since process start.
 - Docker Compose stack for Neo4j, so local development and the integration
   tests do not need Neo4j Desktop or a hosted Aura instance.
 - `npm run test:ci`, which starts that database, waits for it, runs the

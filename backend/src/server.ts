@@ -19,7 +19,14 @@ import { Neo4jClient } from './database/neo4jClient';
 
 const fastify = Fastify({
   logger: {
+    // pino is declared explicitly rather than left to Fastify's default so the
+    // logging dependency is visible in package.json and the level is a
+    // deliberate choice. `warn` in production keeps a busy deployment from
+    // filling its log with a line per job progress tick.
     level: config.nodeEnv === 'development' ? 'info' : 'warn',
+    // Flatten nested objects into the log line so `jobId` and `repoId` are
+    // top-level fields rather than a nested blob that is awkward to query.
+    base: { service: 'codeatlas-api' },
   },
   // A client-supplied body larger than this is rejected outright.
   bodyLimit: 1_048_576,
